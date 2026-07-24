@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dashboard — SoleStock</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-container"></div>
+  <div class="main-wrapper" id="mainWrapper">
+    <div id="header-container"></div>
+    <main class="main-content">
+
+      <!-- KPI Row -->
+      <div class="kpi-grid" id="kpiGrid"></div>
+
+      <!-- Charts + Activity -->
+      <div class="stats-row">
+        <div class="card" style="grid-column:span 2">
+          <div class="card-header">
+            <span class="card-title"><i class="bi bi-bar-chart-fill"></i> Monthly Revenue (Last 6 Months)</span>
+            <span class="text-muted text-sm" id="monthTotalLabel"></span>
+          </div>
+          <div class="chart-container"><canvas id="salesChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="bi bi-pie-chart-fill"></i> Stock Status</span>
+          </div>
+          <div class="chart-container" style="height:220px"><canvas id="stockChart"></canvas></div>
+          <div id="stockLegend" style="margin-top:14px;display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+
+      <!-- Best Sellers + Recent Sales + Alerts -->
+      <div class="stats-row" style="grid-template-columns:1fr 1fr 1fr">
+        <!-- Best Sellers -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="bi bi-trophy-fill"></i> Best Sellers</span>
+            <a href="reports.html" class="btn btn-secondary btn-xs">View Report</a>
+          </div>
+          <div id="bestSellers"></div>
+        </div>
+
+        <!-- Recent Sales -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="bi bi-cart-fill"></i> Recent Sales</span>
+            <a href="sales.html" class="btn btn-secondary btn-xs">View All</a>
+          </div>
+          <div class="activity-list" id="recentSales"></div>
+        </div>
+
+        <!-- Alerts -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="bi bi-exclamation-triangle-fill" style="color:var(--warning)"></i> Stock Alerts</span>
+            <a href="stock.html" class="btn btn-secondary btn-xs">Manage</a>
+          </div>
+          <div id="stockAlerts"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  App.initSidebar('dashboard');
+  App.initHeader('Dashboard', 'Welcome back — here\'s what\'s happening today');
+
+  const stats = DB.getStats();
+
+  // ─── KPI Cards ───────────────────────────────────────────
+  const kpis = [
+    { icon:'bi-bag-fill',          cls:'purple', label:'Total Shoes',    value: stats.totalShoes,          sub: `${stats.totalBrands} brands` },
+    { icon:'bi-boxes',             cls:'cyan',   label:'Total Stock',    value: stats.totalStock.toLocaleString(), sub: 'units available' },
+    { icon:'bi-exclamation-triangle-fill', cls:'yellow', label:'Low Stock', value: stats.lowStock, sub: '1-5 units' },
+    { icon:'bi-x-circle-fill',     cls:'red',    label:'Out of Stock',   value: stats.outOfStock,          sub: 'need restocking' },
+    { icon:'bi-cart-check-fill',   cls:'green',  label:"Today's Sales",  value: stats.todaySalesCount,     sub: App.currency(stats.todayRevenue) },
+    { icon:'bi-calendar3',         cls:'purple', label:'Monthly Sales',  value: stats.monthSalesCount,     sub: App.currency(stats.monthRevenue) },
+    { icon:'bi-graph-up-arrow',    cls:'pink',   label:'Monthly Profit', value: App.currency(stats.monthProfit), sub: 'this month' },
+    { icon:'bi-currency-dollar',   cls:'teal',   label:'Total Revenue',  value: App.currency(stats.totalRevenue), sub: 'all time' },
+  ];
+
+  document.getElementById('kpiGrid').innerHTML = kpis.map(k => `
+    <div class="kpi-card">
+      <div class="kpi-icon ${k.cls}"><i class="bi ${k.icon}"></i></div>
+      <div>
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value">${k.value}</div>
+        <div class="kpi-sub">${k.sub}</div>
+      </div>
+    </div>`).join('');
+
+  // ─── Sales Chart ─────────────────────────────────────────
+  const months = DB.getMonthlySales();
+  document.getElementById('monthTotalLabel').textContent = `Total: ${App.currency(months.reduce((a,m)=>a+m.revenue,0))}`;
+
+  const salesCtx = document.getElementById('salesChart').getContext('2d');
+  Chart.defaults.color = '#64748b';
+  Chart.defaults.font.family = "'Outfit', sans-serif";
+
+  new Chart(salesCtx, {
+    type: 'bar',
+    data: {
+      labels: months.map(m => m.label),
+      datasets: [{
+        label: 'Revenue (Rs)',
+        data: months.map(m => m.revenue),
+        backgroundColor: months.map((_,i) => i===months.length-1 ? 'rgba(124,58,237,0.85)' : 'rgba(124,58,237,0.3)'),
+        borderColor: 'rgba(124,58,237,1)',
+        borderWidth: 1,
+        borderRadius: 6,
+        hoverBackgroundColor: 'rgba(168,85,247,0.9)',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend:{ display:false }, tooltip:{ callbacks:{ label: c=>' '+App.currency(c.raw) } } },
+      scales: {
+        x: { grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#64748b' } },
+        y: { grid:{ color:'rgba(255,255,255,0.04)' }, ticks:{ color:'#64748b', callback: v=>App.currency(v) }, beginAtZero:true }
+      }
+    }
+  });
+
+  // ─── Stock Doughnut ──────────────────────────────────────
+  const shoes = DB.getAll('shoes');
+  const stockGroups = [
+    { label:'In Stock (20+)', count: shoes.filter(s=>s.quantity>20).length, color:'#10b981' },
+    { label:'Medium (6-20)',  count: shoes.filter(s=>s.quantity>5&&s.quantity<=20).length, color:'#06b6d4' },
+    { label:'Low (1-5)',      count: shoes.filter(s=>s.quantity>0&&s.quantity<=5).length, color:'#f59e0b' },
+    { label:'Out of Stock',   count: shoes.filter(s=>s.quantity===0).length, color:'#ef4444' },
+  ];
+
+  const stockCtx = document.getElementById('stockChart').getContext('2d');
+  new Chart(stockCtx, {
+    type:'doughnut',
+    data: {
+      labels: stockGroups.map(g=>g.label),
+      datasets:[{ data: stockGroups.map(g=>g.count), backgroundColor: stockGroups.map(g=>g.color), borderWidth:0, hoverOffset:8 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, cutout:'72%',
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c=>`${c.label}: ${c.raw} shoes` } } }
+    }
+  });
+
+  document.getElementById('stockLegend').innerHTML = stockGroups.map(g=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;font-size:0.8rem;">
+      <span style="display:flex;align-items:center;gap:8px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${g.color};flex-shrink:0;"></span>
+        <span style="color:var(--text-secondary)">${g.label}</span>
+      </span>
+      <strong style="color:var(--text-primary)">${g.count}</strong>
+    </div>`).join('');
+
+  // ─── Best Sellers ────────────────────────────────────────
+  const best = DB.getBestSellers(5);
+  const maxQty = best[0]?.totalQty || 1;
+  document.getElementById('bestSellers').innerHTML = best.length ? best.map((b,i)=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="width:24px;height:24px;border-radius:6px;background:${i===0?'var(--gradient)':'rgba(255,255,255,0.05)'};display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:${i===0?'white':'var(--text-muted)'};flex-shrink:0;">${i+1}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:0.85rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${App.escape(b.name)}</div>
+        <div style="font-size:0.72rem;color:var(--text-muted)">${App.escape(b.brand)}</div>
+        <div class="stock-bar"><div class="stock-bar-fill in-stock" style="width:${Math.round(b.totalQty/maxQty*100)}%"></div></div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:0.82rem;font-weight:700;color:var(--success)">${b.totalQty} sold</div>
+        <div style="font-size:0.72rem;color:var(--text-muted)">${App.currency(b.totalRevenue)}</div>
+      </div>
+    </div>`).join('') : '<p class="text-muted text-sm" style="padding:16px 0">No sales data yet.</p>';
+
+  // ─── Recent Sales ────────────────────────────────────────
+  const recent = DB.getAll('sales').slice(-6).reverse();
+  document.getElementById('recentSales').innerHTML = recent.length ? recent.map(s=>`
+    <div class="activity-item">
+      <div class="activity-dot sale"></div>
+      <div class="activity-content">
+        <div class="activity-text"><strong>${App.escape(s.shoeName)}</strong> × ${s.quantity}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span class="activity-time">${App.date(s.date)}${s.customerName?' · '+App.escape(s.customerName):''}</span>
+          <strong style="font-size:0.8rem;color:var(--success)">${App.currency(s.totalAmount)}</strong>
+        </div>
+      </div>
+    </div>`).join('') : '<p class="text-muted text-sm" style="padding:16px 0">No sales yet.</p>';
+
+  // ─── Stock Alerts ────────────────────────────────────────
+  const lowItems = shoes.filter(s=>s.quantity>0&&s.quantity<=5);
+  const outItems = shoes.filter(s=>s.quantity===0);
+  let alertsHTML = '';
+
+  if (!lowItems.length && !outItems.length) {
+    alertsHTML = `<div class="empty-state" style="padding:24px"><i class="bi bi-check-circle empty-icon" style="color:var(--success);opacity:0.7"></i><p>All stock levels are healthy!</p></div>`;
+  } else {
+    alertsHTML = [...outItems.map(s=>`
+      <div class="activity-item">
+        <div class="activity-dot out"></div>
+        <div class="activity-content">
+          <div class="activity-text"><strong>${App.escape(s.name)}</strong></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span class="activity-time">${App.escape(s.brand)} · ${App.escape(s.category)}</span>
+            <span class="badge badge-danger">Out of Stock</span>
+          </div>
+        </div>
+      </div>`),
+      ...lowItems.map(s=>`
+      <div class="activity-item">
+        <div class="activity-dot low"></div>
+        <div class="activity-content">
+          <div class="activity-text"><strong>${App.escape(s.name)}</strong></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span class="activity-time">${App.escape(s.brand)} · ${s.quantity} left</span>
+            <span class="badge badge-warning">Low Stock</span>
+          </div>
+        </div>
+      </div>`)
+    ].join('');
+  }
+  document.getElementById('stockAlerts').innerHTML = alertsHTML;
+</script>
+</body>
+</html>
