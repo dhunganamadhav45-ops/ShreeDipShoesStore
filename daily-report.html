@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Daily Report — SoleStock</title>
+  <meta name="description" content="Daily store activity reports — log stock, sales, tasks, and incidents.">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+  <style>
+    /* ── Report Cards ─────────────────────────────────────── */
+    .report-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+      transition: var(--transition);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .report-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .report-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      border-radius: 4px 0 0 4px;
+    }
+    .report-card.admin-card::before { background: var(--danger); }
+    .report-card.manager-card::before { background: var(--accent); }
+    .report-card.staff-card::before { background: var(--info); }
+    .report-card.today-card { border-color: var(--border-accent); background: rgba(124,58,237,0.03); }
+
+    .report-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    .report-meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .report-date-badge {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      display:flex; align-items:center; gap:5px;
+    }
+    .report-date-badge.today { background: rgba(124,58,237,0.12); border-color: var(--border-accent); color: var(--accent-light); }
+
+    .report-summary {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .report-tags { display:flex; gap:6px; flex-wrap:wrap; }
+    .report-tag {
+      display:inline-flex; align-items:center; gap:4px;
+      font-size: 0.72rem; font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+    .report-tag.has-content { color: var(--text-primary); border-color: var(--border-hover); background: var(--bg-input); }
+    .report-tag.tag-incident { color: var(--danger); border-color: var(--danger-border); background: var(--danger-bg); }
+
+    /* ── Report Modal Field Blocks ─────────────────────────── */
+    .notes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    @media (max-width: 680px) { .notes-grid { grid-template-columns: 1fr; } }
+
+    .notes-field { display:flex; flex-direction:column; gap:6px; }
+    .notes-field label { display:flex; align-items:center; gap:6px; font-size:0.82rem; font-weight:700; color:var(--text-primary); }
+    .notes-field label i { font-size:0.95rem; }
+    .notes-field .label-green { color: var(--success); }
+    .notes-field .label-blue  { color: var(--info); }
+    .notes-field .label-yellow{ color: var(--warning); }
+    .notes-field .label-purple{ color: var(--accent-light); }
+    .notes-field .label-orange{ color: #f97316; }
+    .notes-field .label-red   { color: var(--danger); }
+    .notes-field textarea { min-height: 90px; resize: vertical; }
+
+    /* ── View Report Body ───────────────────────────────────── */
+    .view-report-section {
+      padding: 14px 16px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+    }
+    .view-report-section h4 {
+      font-size:0.8rem; font-weight:700; text-transform:uppercase;
+      letter-spacing:0.05em; color:var(--text-muted); margin-bottom:8px;
+      display:flex; align-items:center; gap:6px;
+    }
+    .view-report-section p {
+      font-size: 0.88rem; color: var(--text-primary);
+      line-height: 1.7; white-space: pre-wrap;
+      margin: 0;
+    }
+    .view-report-empty { font-size:0.82rem; color:var(--text-muted); font-style:italic; }
+
+    /* ── Empty State ────────────────────────────────────────── */
+    .reports-empty {
+      text-align:center; padding:60px 20px; color:var(--text-muted);
+    }
+    .reports-empty i { font-size:3rem; display:block; margin-bottom:12px; opacity:.4; }
+  </style>
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-container"></div>
+  <div class="main-wrapper">
+    <div id="header-container"></div>
+    <main class="main-content">
+
+      <div class="page-header">
+        <div class="page-header-top">
+          <div>
+            <h1>Daily Report</h1>
+            <p class="subtitle">Record, review and track daily store activity logs</p>
+          </div>
+          <button class="btn btn-primary" id="addReportBtn" onclick="openAddReport()">
+            <i class="bi bi-journal-plus"></i> Write Today's Report
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:28px" id="reportKpis"></div>
+
+      <!-- Filters -->
+      <div class="filter-bar">
+        <div class="search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" class="form-control" id="reportSearch" placeholder="Search report content, author..." oninput="renderReports()">
+        </div>
+        <input type="date" class="form-control" id="filterDate" style="width:160px" onchange="renderReports()">
+        <select class="form-control" id="filterAuthor" style="width:160px" onchange="renderReports()">
+          <option value="">All Staff</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="clearFilters()"><i class="bi bi-x-circle"></i> Clear</button>
+      </div>
+
+      <!-- Report List -->
+      <div id="reportList"></div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ── Add / Edit Report Modal ─────────────────────────────── -->
+<div class="modal-overlay" id="reportModal">
+  <div class="modal" style="max-width:760px;width:95%">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-journal-text"></i> <span id="reportModalTitle">Write Daily Report</span></div>
+      <button class="modal-close" onclick="App.closeModal('reportModal')"><i class="bi bi-x"></i></button>
+    </div>
+    <form id="reportForm" onsubmit="saveReport(event)">
+      <input type="hidden" id="reportId">
+
+      <!-- Meta row -->
+      <div class="form-grid" style="margin-bottom:4px">
+        <div class="form-group">
+          <label class="form-label">Report Date <span class="required">*</span></label>
+          <input type="date" class="form-control" id="reportDate" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time Recorded</label>
+          <input type="text" class="form-control" id="reportTime" readonly style="opacity:0.7">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Staff Member</label>
+          <input type="text" class="form-control" id="reportAuthor" readonly style="opacity:0.7">
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div class="form-group" style="margin-top:12px">
+        <label class="form-label"><i class="bi bi-card-text" style="color:var(--accent-light)"></i> Day Summary <span class="required">*</span></label>
+        <textarea class="form-control" id="reportSummary" rows="3" required placeholder="Briefly describe the overall activities and highlights of the day..."></textarea>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Detailed Notes Grid -->
+      <div style="font-size:0.82rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px">
+        <i class="bi bi-list-check"></i> Detailed Activity Notes
+      </div>
+      <div class="notes-grid">
+        <div class="notes-field">
+          <label><i class="bi bi-box-arrow-in-down label-green"></i> <span class="label-green">Stock Received</span></label>
+          <textarea class="form-control" id="rStockReceived" placeholder="e.g. Received 10 pairs of Air Max from Nike..."></textarea>
+        </div>
+        <div class="notes-field">
+          <label><i class="bi bi-cart-check label-blue"></i> <span class="label-blue">Stock Sold</span></label>
+          <textarea class="form-control" id="rStockSold" placeholder="e.g. 2x Air Max 270, 1x Superstar..."></textarea>
+        </div>
+        <div class="notes-field">
+          <label><i class="bi bi-person-exclamation label-yellow"></i> <span class="label-yellow">Customer Issues / Feedback</span></label>
+          <textarea class="form-control" id="rCustomerNotes" placeholder="e.g. Customer requested size exchange on Adidas shoes..."></textarea>
+        </div>
+        <div class="notes-field">
+          <label><i class="bi bi-check2-square label-purple"></i> <span class="label-purple">Tasks Completed</span></label>
+          <textarea class="form-control" id="rTasksCompleted" placeholder="e.g. Restocked shelves, updated price tags..."></textarea>
+        </div>
+        <div class="notes-field">
+          <label><i class="bi bi-tools label-orange"></i> <span class="label-orange">Store Maintenance / Cleaning</span></label>
+          <textarea class="form-control" id="rMaintenance" placeholder="e.g. Cleaned display area, fixed broken shelf hook..."></textarea>
+        </div>
+        <div class="notes-field">
+          <label><i class="bi bi-exclamation-triangle-fill label-red"></i> <span class="label-red">Incidents / Important Updates</span></label>
+          <textarea class="form-control" id="rIncidents" placeholder="e.g. Security incident, equipment failure, urgent notes..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top:20px">
+        <button type="button" class="btn btn-secondary" onclick="App.closeModal('reportModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-floppy-fill"></i> Save Report</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── View Report Modal ───────────────────────────────────── -->
+<div class="modal-overlay" id="viewReportModal">
+  <div class="modal" style="max-width:680px;width:95%">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-journal-check"></i> Daily Report</div>
+      <button class="modal-close" onclick="App.closeModal('viewReportModal')"><i class="bi bi-x"></i></button>
+    </div>
+    <div id="viewReportBody" style="max-height:70vh;overflow-y:auto;padding:4px 0"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="App.closeModal('viewReportModal')">Close</button>
+      <button class="btn btn-warning" id="viewEditBtn" onclick="editFromView()"><i class="bi bi-pencil"></i> Edit</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  App.initSidebar('daily-report');
+  App.initHeader('Daily Report', 'Record and review daily store activity logs');
+
+  const session = Auth.getSession();
+  const isStaff   = session.role === 'staff';
+  const isAdmin   = session.role === 'admin';
+  const isManager = session.role === 'manager';
+
+  let currentViewId = null;
+  let editReportId  = null;
+
+  // ── Helpers ────────────────────────────────────────────────
+  function formatDateTime(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-AU', { day:'2-digit', month:'short', year:'numeric' })
+      + ' ' + d.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' });
+  }
+
+  function formatDate(s) {
+    if (!s) return '—';
+    const d = new Date(s + 'T00:00:00');
+    const today = new Date().toISOString().split('T')[0];
+    const label = s === today ? '<span style="color:var(--accent-light);font-weight:700">TODAY</span> — ' : '';
+    return label + d.toLocaleDateString('en-AU', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  }
+
+  function roleBadgeForUser(userId) {
+    const u = DB.getById('users', userId);
+    if (!u) return '';
+    const cls = {admin:'badge-danger', manager:'badge-purple', staff:'badge-info'}[u.role] || 'badge-muted';
+    return `<span class="badge ${cls}" style="font-size:0.7rem"><i class="bi bi-shield"></i> ${u.role}</span>`;
+  }
+
+  function canEditReport(report) {
+    if (isAdmin || isManager) return true;
+    if (isStaff && report.authorId === session.userId) return true;
+    return false;
+  }
+
+  function canDeleteReport(report) {
+    if (isAdmin || isManager) return true;
+    return false;
+  }
+
+  // ── KPIs ──────────────────────────────────────────────────
+  function renderKPIs() {
+    const all   = DB.getAll('dailyReports');
+    const today = new Date().toISOString().split('T')[0];
+    const mine  = all.filter(r => r.authorId === session.userId);
+    const todayReports = all.filter(r => r.date === today);
+    const withIncidents = all.filter(r => r.incidents && r.incidents.trim());
+
+    document.getElementById('reportKpis').innerHTML = [
+      { icon:'bi-journal-richtext', cls:'purple', label:'Total Reports',     value: all.length },
+      { icon:'bi-calendar-check',   cls:'green',  label:"Today's Reports",   value: todayReports.length },
+      { icon:'bi-person-lines-fill',cls:'cyan',   label:'My Reports',        value: mine.length },
+      { icon:'bi-exclamation-triangle-fill', cls:'red', label:'With Incidents', value: withIncidents.length },
+    ].map(k => `
+      <div class="kpi-card">
+        <div class="kpi-icon ${k.cls}"><i class="bi ${k.icon}"></i></div>
+        <div>
+          <div class="kpi-label">${k.label}</div>
+          <div class="kpi-value">${k.value}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  // ── Populate Author Filter ─────────────────────────────────
+  function populateAuthorFilter() {
+    const reports = DB.getAll('dailyReports');
+    const authors = [...new Map(reports.map(r => [r.authorId, r.authorName])).entries()];
+    document.getElementById('filterAuthor').innerHTML =
+      `<option value="">All Staff</option>` +
+      authors.map(([id, name]) => `<option value="${id}">${App.escape(name)}</option>`).join('');
+  }
+
+  // ── Render Report List ─────────────────────────────────────
+  function renderReports() {
+    const q          = document.getElementById('reportSearch').value.toLowerCase();
+    const dateFilter = document.getElementById('filterDate').value;
+    const authFilter = document.getElementById('filterAuthor').value;
+    const today      = new Date().toISOString().split('T')[0];
+
+    let reports = DB.getAll('dailyReports').filter(r => {
+      if (authFilter && r.authorId !== authFilter) return false;
+      if (dateFilter && r.date !== dateFilter) return false;
+      if (q && ![r.summary, r.authorName, r.stockReceived, r.stockSold, r.customerNotes, r.tasksCompleted, r.maintenance, r.incidents]
+                .join(' ').toLowerCase().includes(q)) return false;
+      return true;
+    }).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+
+    const list = document.getElementById('reportList');
+    if (!reports.length) {
+      list.innerHTML = `
+        <div class="reports-empty">
+          <i class="bi bi-journal-x"></i>
+          <h3>No reports found</h3>
+          <p>Adjust your filters or write the first daily report.</p>
+        </div>`;
+      return;
+    }
+
+    list.innerHTML = reports.map(r => {
+      const isToday = r.date === today;
+      const roleColor = { admin:'admin-card', manager:'manager-card', staff:'staff-card' };
+      const authorRole = (DB.getById('users', r.authorId)||{}).role || 'staff';
+
+      const tagDef = [
+        { key:'stockReceived',  icon:'bi-box-arrow-in-down', label:'Stock In',    cls: r.stockReceived?.trim()  ? 'has-content' : '' },
+        { key:'stockSold',      icon:'bi-cart-check',        label:'Sales',       cls: r.stockSold?.trim()      ? 'has-content' : '' },
+        { key:'customerNotes',  icon:'bi-person-exclamation',label:'Customers',   cls: r.customerNotes?.trim()  ? 'has-content' : '' },
+        { key:'tasksCompleted', icon:'bi-check2-square',     label:'Tasks',       cls: r.tasksCompleted?.trim() ? 'has-content' : '' },
+        { key:'maintenance',    icon:'bi-tools',             label:'Maintenance', cls: r.maintenance?.trim()    ? 'has-content' : '' },
+        { key:'incidents',      icon:'bi-exclamation-triangle-fill', label:'Incidents', cls: r.incidents?.trim() ? 'tag-incident' : '' },
+      ];
+
+      const canEdit   = canEditReport(r);
+      const canDelete = canDeleteReport(r);
+
+      return `
+        <div class="report-card ${roleColor[authorRole]||'staff-card'} ${isToday ? 'today-card' : ''}"
+             onclick="viewReport('${r.id}')">
+          <div class="report-header">
+            <div class="report-meta">
+              <span class="report-date-badge ${isToday ? 'today' : ''}">
+                <i class="bi bi-calendar3"></i> ${formatDate(r.date)}
+              </span>
+              <div class="user-avatar-sm" style="width:28px;height:28px;font-size:0.7rem">${App.initials(r.authorName)}</div>
+              <div>
+                <span class="fw-600 text-sm">${App.escape(r.authorName)}</span>
+                ${roleBadgeForUser(r.authorId)}
+              </div>
+              <span class="text-muted text-xs"><i class="bi bi-clock"></i> ${formatDateTime(r.createdAt)}</span>
+              ${r.updatedAt !== r.createdAt ? `<span class="badge badge-muted text-xs"><i class="bi bi-pencil"></i> Edited</span>` : ''}
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0" onclick="event.stopPropagation()">
+              ${canEdit ? `<button class="btn btn-warning btn-icon btn-sm" onclick="editReport('${r.id}')" title="Edit"><i class="bi bi-pencil"></i></button>` : ''}
+              ${canDelete ? `<button class="btn btn-danger btn-icon btn-sm" onclick="deleteReport('${r.id}')" title="Delete"><i class="bi bi-trash3"></i></button>` : ''}
+            </div>
+          </div>
+
+          <p class="report-summary">${App.escape(r.summary)}</p>
+
+          <div class="report-tags">
+            ${tagDef.map(t => `
+              <span class="report-tag ${t.cls}">
+                <i class="bi ${t.icon}"></i> ${t.label}
+                ${t.cls ? '<i class="bi bi-check-lg"></i>' : ''}
+              </span>`).join('')}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function clearFilters() {
+    document.getElementById('reportSearch').value = '';
+    document.getElementById('filterDate').value = '';
+    document.getElementById('filterAuthor').value = '';
+    renderReports();
+  }
+
+  // ── Open Add Modal ─────────────────────────────────────────
+  function openAddReport() {
+    editReportId = null;
+    document.getElementById('reportForm').reset();
+    document.getElementById('reportId').value = '';
+    document.getElementById('reportModalTitle').textContent = 'Write Daily Report';
+    const now = new Date();
+    document.getElementById('reportDate').value = now.toISOString().split('T')[0];
+    document.getElementById('reportTime').value = now.toLocaleTimeString('en-AU', { hour:'2-digit', minute:'2-digit' });
+    document.getElementById('reportAuthor').value = session.name;
+    App.openModal('reportModal');
+  }
+
+  // ── Open Edit Modal ────────────────────────────────────────
+  function editReport(id) {
+    const r = DB.getById('dailyReports', id);
+    if (!r) return;
+
+    if (!canEditReport(r)) {
+      App.toast('Access Denied', 'You can only edit your own reports.', 'danger');
+      return;
+    }
+
+    editReportId = id;
+    document.getElementById('reportId').value = id;
+    document.getElementById('reportModalTitle').textContent = 'Edit Daily Report';
+    document.getElementById('reportDate').value = r.date;
+    document.getElementById('reportTime').value = formatDateTime(r.updatedAt||r.createdAt).split(' ').slice(1).join(' ');
+    document.getElementById('reportAuthor').value = r.authorName;
+    document.getElementById('reportSummary').value = r.summary || '';
+    document.getElementById('rStockReceived').value  = r.stockReceived  || '';
+    document.getElementById('rStockSold').value      = r.stockSold      || '';
+    document.getElementById('rCustomerNotes').value  = r.customerNotes  || '';
+    document.getElementById('rTasksCompleted').value = r.tasksCompleted || '';
+    document.getElementById('rMaintenance').value    = r.maintenance    || '';
+    document.getElementById('rIncidents').value      = r.incidents      || '';
+    App.openModal('reportModal');
+  }
+
+  function editFromView() {
+    App.closeModal('viewReportModal');
+    if (currentViewId) editReport(currentViewId);
+  }
+
+  // ── Save ───────────────────────────────────────────────────
+  function saveReport(e) {
+    e.preventDefault();
+    const now = new Date().toISOString();
+    const data = {
+      date:           document.getElementById('reportDate').value,
+      summary:        document.getElementById('reportSummary').value.trim(),
+      stockReceived:  document.getElementById('rStockReceived').value.trim(),
+      stockSold:      document.getElementById('rStockSold').value.trim(),
+      customerNotes:  document.getElementById('rCustomerNotes').value.trim(),
+      tasksCompleted: document.getElementById('rTasksCompleted').value.trim(),
+      maintenance:    document.getElementById('rMaintenance').value.trim(),
+      incidents:      document.getElementById('rIncidents').value.trim(),
+      updatedAt:      now,
+    };
+
+    if (editReportId) {
+      DB.update('dailyReports', editReportId, data);
+      App.toast('Report Updated', `Daily report for ${data.date} has been updated.`, 'success');
+    } else {
+      data.authorId   = session.userId;
+      data.authorName = session.name;
+      data.createdAt  = now;
+      DB.add('dailyReports', data);
+      App.toast('Report Saved', `Daily report for ${data.date} has been recorded.`, 'success');
+    }
+
+    App.closeModal('reportModal');
+    populateAuthorFilter();
+    renderKPIs();
+    renderReports();
+  }
+
+  // ── Delete ─────────────────────────────────────────────────
+  function deleteReport(id) {
+    const r = DB.getById('dailyReports', id);
+    if (!r) return;
+    if (!canDeleteReport(r)) {
+      App.toast('Access Denied', 'You do not have permission to delete reports.', 'danger');
+      return;
+    }
+    App.confirm('Delete Report', `Delete daily report for <strong>${r.date}</strong> by ${r.authorName}? This cannot be undone.`, () => {
+      DB.delete('dailyReports', id);
+      App.toast('Report Deleted', 'Daily report removed.', 'danger');
+      renderKPIs();
+      renderReports();
+      populateAuthorFilter();
+    });
+  }
+
+  // ── View Modal ─────────────────────────────────────────────
+  function viewReport(id) {
+    const r = DB.getById('dailyReports', id);
+    if (!r) return;
+    currentViewId = id;
+
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = r.date === today;
+
+    const sections = [
+      { icon:'bi-box-arrow-in-down', color:'var(--success)',  label:'Stock Received',             text: r.stockReceived },
+      { icon:'bi-cart-check',        color:'var(--info)',     label:'Stock Sold',                 text: r.stockSold },
+      { icon:'bi-person-exclamation',color:'var(--warning)',  label:'Customer Issues / Feedback', text: r.customerNotes },
+      { icon:'bi-check2-square',     color:'var(--accent-light)', label:'Tasks Completed',        text: r.tasksCompleted },
+      { icon:'bi-tools',             color:'#f97316',         label:'Store Maintenance / Cleaning', text: r.maintenance },
+      { icon:'bi-exclamation-triangle-fill', color:'var(--danger)', label:'Incidents / Important Updates', text: r.incidents },
+    ];
+
+    document.getElementById('viewReportBody').innerHTML = `
+      <!-- Header block -->
+      <div style="display:flex;align-items:center;gap:14px;padding:16px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius-lg);margin-bottom:16px">
+        <div class="kpi-icon purple" style="width:52px;height:52px;flex-shrink:0"><i class="bi bi-journal-richtext"></i></div>
+        <div style="flex:1">
+          <div style="font-size:1.05rem;font-weight:800;color:var(--text-primary);margin-bottom:2px">
+            ${isToday ? '<span class="badge badge-purple" style="margin-right:6px">TODAY</span>' : ''}
+            ${formatDate(r.date)}
+          </div>
+          <div style="font-size:0.82rem;color:var(--text-muted)">
+            Written by <strong>${App.escape(r.authorName)}</strong> ${roleBadgeForUser(r.authorId)}
+            &nbsp;·&nbsp; <i class="bi bi-clock"></i> ${formatDateTime(r.createdAt)}
+            ${r.updatedAt && r.updatedAt !== r.createdAt ? `&nbsp;·&nbsp; <i class="bi bi-pencil"></i> Edited ${formatDateTime(r.updatedAt)}` : ''}
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div class="view-report-section">
+        <h4><i class="bi bi-card-text" style="color:var(--accent-light)"></i> Day Summary</h4>
+        <p>${App.escape(r.summary)}</p>
+      </div>
+
+      <!-- Note sections -->
+      ${sections.map(s => `
+        <div class="view-report-section">
+          <h4><i class="bi ${s.icon}" style="color:${s.color}"></i> ${s.label}</h4>
+          ${s.text ? `<p>${App.escape(s.text)}</p>` : `<p class="view-report-empty">— Not recorded —</p>`}
+        </div>`).join('')}
+    `;
+
+    // Show edit button only if user can edit this report
+    document.getElementById('viewEditBtn').style.display = canEditReport(r) ? '' : 'none';
+
+    App.openModal('viewReportModal');
+  }
+
+  // ── Init ───────────────────────────────────────────────────
+  renderKPIs();
+  populateAuthorFilter();
+  renderReports();
+</script>
+</body>
+</html>

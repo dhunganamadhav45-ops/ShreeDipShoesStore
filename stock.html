@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Stock Management — SoleStock</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-container"></div>
+  <div class="main-wrapper">
+    <div id="header-container"></div>
+    <main class="main-content">
+
+      <div class="page-header">
+        <div class="page-header-top">
+          <div>
+            <h1>Stock Management</h1>
+            <p class="subtitle" id="stockSubtitle">Monitor, adjust and track your inventory levels</p>
+          </div>
+          <div style="display:flex;gap:10px" id="stockHeaderActions">
+            <button class="btn btn-success" onclick="App.openModal('addStockModal')"><i class="bi bi-plus-circle-fill"></i> Add Stock</button>
+            <button class="btn btn-warning" onclick="App.openModal('removeStockModal')"><i class="bi bi-dash-circle-fill"></i> Remove Stock</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:28px" id="stockKpis"></div>
+
+      <!-- Alert: Low Stock -->
+      <div id="lowStockSection">
+        <div id="lowStockAlerts"></div>
+      </div>
+
+      <!-- Current Stock Table -->
+      <div class="card" style="padding:0;overflow:hidden;margin-bottom:28px">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+          <span class="card-title"><i class="bi bi-table"></i> Current Stock Levels</span>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <div class="search-box" style="min-width:200px">
+              <i class="bi bi-search"></i>
+              <input type="text" class="form-control" id="stockSearch" placeholder="Search shoe..." oninput="renderStockTable()">
+            </div>
+            <select class="form-control" id="stockStatusFilter" style="width:150px" onchange="renderStockTable()">
+              <option value="">All Status</option>
+              <option value="out">Out of Stock</option>
+              <option value="low">Low Stock (1-5)</option>
+              <option value="medium">Medium (6-20)</option>
+              <option value="in">In Stock (20+)</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr><th>Shoe</th><th>Brand</th><th>Category</th><th>Size</th><th>Location / Venue</th><th>Quantity</th><th>Status</th><th>Stock Bar</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="stockBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Stock History -->
+      <div id="historySection">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <span class="card-title"><i class="bi bi-clock-history"></i> Stock History</span>
+            <span class="text-muted text-sm" id="historyCount"></span>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr><th>Date</th><th>Shoe</th><th>Type</th><th>Change</th><th>Previous Qty</th><th>New Qty</th><th>Reason</th></tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Add Stock Modal -->
+<div class="modal-overlay" id="addStockModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-plus-circle-fill" style="color:var(--success)"></i> Add Stock</div>
+      <button class="modal-close" onclick="App.closeModal('addStockModal')"><i class="bi bi-x"></i></button>
+    </div>
+    <form onsubmit="handleAdjust(event,'add')">
+      <div class="form-group">
+        <label class="form-label">Shoe <span class="required">*</span></label>
+        <select class="form-control" id="addStockShoe" required></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Quantity to Add <span class="required">*</span></label>
+        <input type="number" class="form-control" id="addStockQty" required min="1" placeholder="e.g. 10">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <input type="text" class="form-control" id="addStockReason" placeholder="e.g. New delivery from supplier">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="App.closeModal('addStockModal')">Cancel</button>
+        <button type="submit" class="btn btn-success"><i class="bi bi-plus-circle"></i> Add Stock</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Remove Stock Modal -->
+<div class="modal-overlay" id="removeStockModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-dash-circle-fill" style="color:var(--warning)"></i> Remove Stock</div>
+      <button class="modal-close" onclick="App.closeModal('removeStockModal')"><i class="bi bi-x"></i></button>
+    </div>
+    <form onsubmit="handleAdjust(event,'remove')">
+      <div class="form-group">
+        <label class="form-label">Shoe <span class="required">*</span></label>
+        <select class="form-control" id="removeStockShoe" required></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Quantity to Remove <span class="required">*</span></label>
+        <input type="number" class="form-control" id="removeStockQty" required min="1" placeholder="e.g. 5">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <input type="text" class="form-control" id="removeStockReason" placeholder="e.g. Damaged goods, return">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="App.closeModal('removeStockModal')">Cancel</button>
+        <button type="submit" class="btn btn-warning"><i class="bi bi-dash-circle"></i> Remove Stock</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  App.initSidebar('stock');
+  const _canEditStock = Auth.canEditStock();
+  App.initHeader('Stock Management', _canEditStock ? 'Track and control your inventory levels' : 'View stock levels (Staff — View Only)');
+  App.handleHash();
+
+  // Staff view-only: hide Add/Remove Stock buttons
+  if (!_canEditStock) {
+    document.getElementById('stockHeaderActions').style.display = 'none';
+    document.getElementById('stockSubtitle').textContent = 'Browse stock levels — Staff view only (no modifications allowed)';
+  }
+
+  const session = Auth.getSession();
+
+  function populateShoeSelects() {
+    const shoes = DB.getAll('shoes');
+    const opts = `<option value="">-- Select Shoe --</option>` +
+      shoes.map(s=>`<option value="${s.id}">${App.escape(s.name)} (${App.escape(s.brand)}) — Qty: ${s.quantity}</option>`).join('');
+    document.getElementById('addStockShoe').innerHTML = opts;
+    document.getElementById('removeStockShoe').innerHTML = opts;
+  }
+
+  function renderKPIs() {
+    const stats = DB.getStats();
+    document.getElementById('stockKpis').innerHTML = [
+      { icon:'bi-boxes',             cls:'cyan',   label:'Total Stock Units', value:stats.totalStock.toLocaleString() },
+      { icon:'bi-exclamation-triangle-fill', cls:'yellow', label:'Low Stock Items',  value:stats.lowStock },
+      { icon:'bi-x-circle-fill',     cls:'red',    label:'Out of Stock',      value:stats.outOfStock },
+      { icon:'bi-check-circle-fill', cls:'green',  label:'Healthy Stock',     value:stats.totalShoes-stats.lowStock-stats.outOfStock },
+    ].map(k=>`
+      <div class="kpi-card">
+        <div class="kpi-icon ${k.cls}"><i class="bi ${k.icon}"></i></div>
+        <div>
+          <div class="kpi-label">${k.label}</div>
+          <div class="kpi-value">${k.value}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderLowAlerts() {
+    const stats = DB.getStats();
+    const out = stats.outOfStockItems;
+    const low = stats.lowStockItems;
+    let html = '';
+    if (out.length) html += `<div class="alert-banner alert-danger" style="margin-bottom:12px"><i class="bi bi-x-circle-fill alert-icon"></i><div><h4>Out of Stock (${out.length} items)</h4><p>${out.map(s=>App.escape(s.name)).join(', ')}</p></div></div>`;
+    if (low.length) html += `<div class="alert-banner alert-warning" style="margin-bottom:24px"><i class="bi bi-exclamation-triangle-fill alert-icon"></i><div><h4>Low Stock Alert (${low.length} items)</h4><p>${low.map(s=>`${App.escape(s.name)} (${s.quantity} left)`).join(', ')}</p></div></div>`;
+    document.getElementById('lowStockAlerts').innerHTML = html;
+  }
+
+  function renderStockTable() {
+    const q  = document.getElementById('stockSearch').value.toLowerCase();
+    const st = document.getElementById('stockStatusFilter').value;
+    let shoes = DB.getAll('shoes').filter(s => {
+      if (q && !`${s.name} ${s.brand} ${s.location||''}`.toLowerCase().includes(q)) return false;
+      if (st==='out'    && s.quantity!==0) return false;
+      if (st==='low'    && !(s.quantity>0&&s.quantity<=5)) return false;
+      if (st==='medium' && !(s.quantity>5&&s.quantity<=20)) return false;
+      if (st==='in'     && s.quantity<=20) return false;
+      return true;
+    }).sort((a,b)=>a.quantity-b.quantity);
+
+    const maxQty = Math.max(...shoes.map(s=>s.quantity), 1);
+    const body = document.getElementById('stockBody');
+    if (!shoes.length) {
+      body.innerHTML=`<tr><td colspan="9"><div class="empty-state"><i class="bi bi-search empty-icon"></i><h3>No results</h3></div></td></tr>`;
+      return;
+    }
+    body.innerHTML = shoes.map(s=>{
+      const status = DB.getStockStatus(s.quantity);
+      const pct = Math.min(s.quantity/Math.max(maxQty,20)*100, 100);
+      return `<tr>
+        <td class="primary">${App.escape(s.name)}</td>
+        <td><span class="badge badge-purple">${App.escape(s.brand)}</span></td>
+        <td>${App.escape(s.category)}</td>
+        <td>${App.escape(s.size)}</td>
+        <td><span class="badge badge-muted"><i class="bi bi-geo-alt"></i> ${App.escape(s.location||'—')}</span></td>
+        <td class="fw-700 ${s.quantity===0?'text-danger':s.quantity<=5?'text-warning':'text-primary'}" style="font-size:1rem">${s.quantity}</td>
+        <td><span class="badge ${status.cls}">${status.label}</span></td>
+        <td style="min-width:120px">
+          <div class="stock-bar"><div class="stock-bar-fill ${status.barCls}" style="width:${pct}%"></div></div>
+        </td>
+        <td>
+          <div style="display:flex;gap:6px">
+            ${_canEditStock ? `<button class="btn btn-success btn-xs" onclick="quickAdd('${s.id}')"><i class="bi bi-plus"></i> Add</button>` : ''}
+            <a href="shoes.html" class="btn btn-secondary btn-xs"><i class="bi bi-eye"></i></a>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderHistory() {
+    const hist = DB.getAll('stockHistory').slice().reverse();
+    document.getElementById('historyCount').textContent = `${hist.length} records`;
+    const typeMap = { purchase:{cls:'badge-info',icon:'bi-truck',label:'Purchase'}, sale:{cls:'badge-success',icon:'bi-cart',label:'Sale'}, add:{cls:'badge-purple',icon:'bi-plus-circle',label:'Manual Add'}, remove:{cls:'badge-warning',icon:'bi-dash-circle',label:'Manual Remove'} };
+    document.getElementById('historyBody').innerHTML = hist.length
+      ? hist.map(h=>{
+          const t = typeMap[h.changeType] || {cls:'badge-muted',icon:'bi-question',label:h.changeType};
+          const sign = h.qty > 0 ? '+' : '';
+          return `<tr>
+            <td class="text-muted text-sm">${App.date(h.date)}</td>
+            <td class="primary">${App.escape(h.shoeName)}</td>
+            <td><span class="badge ${t.cls}"><i class="bi ${t.icon}"></i> ${t.label}</span></td>
+            <td class="fw-700 ${h.qty>0?'text-success':'text-danger'}">${sign}${h.qty}</td>
+            <td>${h.prevQty ?? '—'}</td>
+            <td class="fw-700">${h.newQty ?? '—'}</td>
+            <td class="text-muted text-sm">${App.escape(h.reason||'—')}</td>
+          </tr>`;
+        }).join('')
+      : `<tr><td colspan="7"><div class="empty-state" style="padding:40px"><p>No stock history yet.</p></div></td></tr>`;
+  }
+
+  function handleAdjust(e, type) {
+    e.preventDefault();
+    const prefix = type==='add' ? 'add' : 'remove';
+    const shoeId  = document.getElementById(`${prefix}StockShoe`).value;
+    const qty     = parseInt(document.getElementById(`${prefix}StockQty`).value)||0;
+    const reason  = document.getElementById(`${prefix}StockReason`).value.trim() || (type==='add' ? 'Manual stock addition' : 'Manual stock removal');
+    if (!shoeId || qty<=0) return;
+    const res = DB.adjustStock(shoeId, type==='add' ? qty : -qty, reason, session.userId);
+    if (res.ok) {
+      App.closeModal(`${prefix}StockModal`);
+      App.toast('Stock Updated', `New quantity: ${res.newQty}`, type==='add'?'success':'warning');
+      refreshAll();
+    } else {
+      App.toast('Error', res.msg, 'danger');
+    }
+  }
+
+  function quickAdd(shoeId) {
+    document.getElementById('addStockShoe').value = shoeId;
+    App.openModal('addStockModal');
+  }
+
+  function refreshAll() {
+    renderKPIs();
+    renderLowAlerts();
+    renderStockTable();
+    renderHistory();
+    populateShoeSelects();
+  }
+
+  refreshAll();
+</script>
+</body>
+</html>

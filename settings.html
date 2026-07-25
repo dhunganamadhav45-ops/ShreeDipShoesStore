@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Settings — SoleStock</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-container"></div>
+  <div class="main-wrapper">
+    <div id="header-container"></div>
+    <main class="main-content">
+
+      <div class="page-header">
+        <div class="page-header-top">
+          <div>
+            <h1>System Settings</h1>
+            <p class="subtitle">Configure store parameters, currency, tax rates, and security options (Admin Only)</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:800px;margin:0 auto;padding:32px">
+        <form id="settingsForm" onsubmit="saveSettings(event)">
+          <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:10px;color:var(--text-primary)">
+            <i class="bi bi-shop text-accent"></i> Shop Profile & Branding
+          </h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Shop Name <span class="required">*</span></label>
+              <input type="text" class="form-control" id="settShopName" required placeholder="SoleStock Shoe Shop">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Currency Symbol <span class="required">*</span></label>
+              <input type="text" class="form-control" id="settCurrency" required placeholder="Rs">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone Contact</label>
+              <input type="tel" class="form-control" id="settPhone" placeholder="+1-555-0100">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Support Email</label>
+              <input type="email" class="form-control" id="settEmail" placeholder="support@solestock.com">
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:10px;color:var(--text-primary)">
+            <i class="bi bi-sliders text-accent"></i> Inventory & Sales Rules
+          </h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Low Stock Alert Threshold (Units)</label>
+              <input type="number" class="form-control" id="settLowStock" min="1" max="50" placeholder="5">
+              <div class="form-hint">Items at or below this count generate low stock alerts.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Default Sales Tax (%)</label>
+              <input type="number" class="form-control" id="settTax" min="0" max="50" step="0.1" placeholder="0">
+              <div class="form-hint">Applied to sale receipts if enabled.</div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:16px">
+            <label class="form-label">Receipt Footer Note</label>
+            <textarea class="form-control" id="settReceiptFooter" rows="2" placeholder="Thank you for shopping at SoleStock! Please visit us again."></textarea>
+          </div>
+
+          <div class="divider"></div>
+
+          <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:24px">
+            <button type="button" class="btn btn-secondary" onclick="resetSettings()"><i class="bi bi-arrow-counterclockwise"></i> Reset Defaults</button>
+            <button type="submit" class="btn btn-primary"><i class="bi bi-floppy-fill"></i> Save Settings</button>
+          </div>
+        </form>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // Admin Guard
+  if (!Auth.requireRole('admin')) {
+    // Redirection handled by Auth.requireRole
+  }
+
+  App.initSidebar('settings');
+  App.initHeader('Settings', 'Configure system preferences (Admin Only)');
+
+  function loadSettings() {
+    const defaults = {
+      shopName: 'SoleStock Shoe Shop',
+      currency: 'Rs ',
+      phone: '+1-555-0100',
+      email: 'contact@solestock.com',
+      lowStock: 5,
+      tax: 0,
+      receiptFooter: 'Thank you for shopping at SoleStock! Items can be exchanged within 7 days.'
+    };
+
+    let settings = defaults;
+    try {
+      const saved = localStorage.getItem('ss_settings');
+      if (saved) settings = { ...defaults, ...JSON.parse(saved) };
+    } catch(e) {}
+
+    document.getElementById('settShopName').value = settings.shopName;
+    document.getElementById('settCurrency').value = settings.currency.trim();
+    document.getElementById('settPhone').value    = settings.phone;
+    document.getElementById('settEmail').value    = settings.email;
+    document.getElementById('settLowStock').value = settings.lowStock;
+    document.getElementById('settTax').value      = settings.tax;
+    document.getElementById('settReceiptFooter').value = settings.receiptFooter;
+  }
+
+  function saveSettings(e) {
+    e.preventDefault();
+    const settings = {
+      shopName: document.getElementById('settShopName').value.trim(),
+      currency: document.getElementById('settCurrency').value.trim() + ' ',
+      phone:    document.getElementById('settPhone').value.trim(),
+      email:    document.getElementById('settEmail').value.trim(),
+      lowStock: parseInt(document.getElementById('settLowStock').value) || 5,
+      tax:      parseFloat(document.getElementById('settTax').value) || 0,
+      receiptFooter: document.getElementById('settReceiptFooter').value.trim(),
+    };
+
+    localStorage.setItem('ss_settings', JSON.stringify(settings));
+    App.toast('Settings Saved', 'System settings updated successfully.', 'success');
+  }
+
+  function resetSettings() {
+    App.confirm('Reset Settings', 'Reset system settings to default values?', () => {
+      localStorage.removeItem('ss_settings');
+      loadSettings();
+      App.toast('Reset', 'Settings restored to factory defaults.', 'info');
+    });
+  }
+
+  loadSettings();
+</script>
+</body>
+</html>

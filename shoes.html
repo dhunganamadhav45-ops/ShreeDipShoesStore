@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Shoes — SoleStock</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-container"></div>
+  <div class="main-wrapper" id="mainWrapper">
+    <div id="header-container"></div>
+    <main class="main-content">
+
+      <div class="page-header">
+        <div class="page-header-top">
+          <div>
+            <h1>Shoe Inventory</h1>
+            <p class="subtitle" id="shoesSubtitle">Manage all shoe records — add, edit, delete and search</p>
+          </div>
+          <div style="display:flex;gap:10px" id="shoesHeaderActions">
+            <button class="btn btn-info" onclick="openBulkAddModal()"><i class="bi bi-layers-fill"></i> Bulk Add (5)</button>
+            <button class="btn btn-primary" onclick="openAddModal()"><i class="bi bi-plus-lg"></i> Add Shoe</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="filter-bar">
+        <div class="search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" class="form-control" id="searchInput" placeholder="Search by name, brand, colour..." oninput="renderTable()">
+        </div>
+        <select class="form-control" id="filterBrand" style="width:140px" onchange="renderTable()">
+          <option value="">All Brands</option>
+        </select>
+        <select class="form-control" id="filterCategory" style="width:140px" onchange="renderTable()">
+          <option value="">All Categories</option>
+          <option>Running</option><option>Casual</option><option>Sports</option><option>Formal</option><option>Boots</option><option>Sandals</option>
+        </select>
+        <select class="form-control" id="filterGender" style="width:130px" onchange="renderTable()">
+          <option value="">All Genders</option>
+          <option>Men</option><option>Women</option><option>Kids</option><option>Unisex</option>
+        </select>
+        <select class="form-control" id="filterStatus" style="width:140px" onchange="renderTable()">
+          <option value="">All Status</option>
+          <option value="out">Out of Stock</option>
+          <option value="low">Low Stock</option>
+          <option value="medium">Medium Stock</option>
+          <option value="in">In Stock</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="clearFilters()"><i class="bi bi-x-circle"></i> Clear</button>
+      </div>
+
+      <!-- Table -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrapper">
+          <table class="data-table" id="shoesTable">
+            <thead>
+              <tr>
+                <th>Shoe</th>
+                <th>Brand</th>
+                <th>Category</th>
+                <th>Size</th>
+                <th>Colour</th>
+                <th>Gender</th>
+                <th>Buy Price</th>
+                <th>Sell Price</th>
+                <th>Qty</th>
+                <th>Status</th>
+                <th>Date Added</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="shoesBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="shoeModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-bag-fill"></i> <span id="modalTitle">Add Shoe</span></div>
+      <button class="modal-close" onclick="App.closeModal('shoeModal')"><i class="bi bi-x"></i></button>
+    </div>
+    <form id="shoeForm" onsubmit="saveShoe(event)">
+      <input type="hidden" id="shoeId">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Shoe Name <span class="required">*</span></label>
+          <input type="text" class="form-control" id="shoeName" required placeholder="e.g. Air Max 270">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Brand <span class="required">*</span></label>
+          <input type="text" class="form-control" id="shoeFormBrand" required list="brandsList" placeholder="e.g. Nike">
+          <datalist id="brandsList"></datalist>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category <span class="required">*</span></label>
+          <select class="form-control" id="shoeCategory" required>
+            <option value="">-- Select --</option>
+            <option>Running</option><option>Casual</option><option>Sports</option><option>Formal</option><option>Boots</option><option>Sandals</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gender <span class="required">*</span></label>
+          <select class="form-control" id="shoeGender" required>
+            <option value="">-- Select --</option>
+            <option>Men</option><option>Women</option><option>Kids</option><option>Unisex</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Size <span class="required">*</span></label>
+          <input type="text" class="form-control" id="shoeSize" required placeholder="e.g. 9 or 9.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Colour</label>
+          <input type="text" class="form-control" id="shoeColour" placeholder="e.g. Black/White">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Purchase Price (Rs) <span class="required">*</span></label>
+          <input type="number" class="form-control" id="shoePurchasePrice" required min="0" step="0.01" placeholder="0.00" oninput="calcMargin()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Selling Price (Rs) <span class="required">*</span></label>
+          <input type="number" class="form-control" id="shoeSellingPrice" required min="0" step="0.01" placeholder="0.00" oninput="calcMargin()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quantity <span class="required">*</span></label>
+          <input type="number" class="form-control" id="shoeQty" required min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Supplier</label>
+          <select class="form-control" id="shoeSupplier">
+            <option value="">-- Select Supplier --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Barcode</label>
+          <input type="text" class="form-control" id="shoeBarcode" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Store Location / Venue</label>
+          <input type="text" class="form-control" id="shoeLocation" placeholder="e.g. Aisle 2 - Shelf B">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Profit Margin</label>
+          <div style="padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);">
+            <span id="marginDisplay" style="font-weight:700;color:var(--success)">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-control" id="shoeDescription" rows="2" placeholder="Shoe description, materials, features..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Shoe Image</label>
+        <div class="upload-area" id="uploadArea">
+          <input type="file" id="shoeImageInput" accept="image/*">
+          <i class="bi bi-cloud-upload"></i>
+          <p>Click to upload shoe image</p>
+          <small>JPG, PNG, WEBP (optional)</small>
+        </div>
+        <img class="upload-preview" id="imagePreview" alt="Preview">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="App.closeModal('shoeModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-floppy"></i> Save Shoe</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- View Modal -->
+<div class="modal-overlay" id="viewModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-eye-fill"></i> Shoe Details</div>
+      <button class="modal-close" onclick="App.closeModal('viewModal')"><i class="bi bi-x"></i></button>
+    </div>
+    <div id="viewBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="App.closeModal('viewModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Add Modal (Up to 5 Products at Once) -->
+<div class="modal-overlay" id="bulkAddModal">
+  <div class="modal modal-lg" style="max-width:1100px">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-layers-fill"></i> Add Up to 5 Products at Once</div>
+      <button class="modal-close" onclick="App.closeModal('bulkAddModal')"><i class="bi bi-x"></i></button>
+    </div>
+    <form id="bulkForm" onsubmit="saveBulkShoes(event)">
+      <p class="form-hint" style="margin-bottom:14px">Enter details for up to 5 products below. Only rows with a Name and Brand will be saved.</p>
+      <div style="overflow-x:auto">
+        <table class="data-table" style="font-size:0.8rem">
+          <thead>
+            <tr>
+              <th style="width:24px">#</th>
+              <th style="min-width:120px">Shoe Name *</th>
+              <th style="min-width:100px">Brand *</th>
+              <th style="min-width:90px">Category</th>
+              <th style="min-width:85px">Gender</th>
+              <th style="width:60px">Size *</th>
+              <th style="width:80px">Colour</th>
+              <th style="width:80px">Buy (Rs)</th>
+              <th style="width:80px">Sell (Rs)</th>
+              <th style="width:60px">Qty</th>
+              <th style="min-width:100px">Location/Venue</th>
+            </tr>
+          </thead>
+          <tbody id="bulkRows">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="App.closeModal('bulkAddModal')">Cancel</button>
+        <button type="submit" class="btn btn-info"><i class="bi bi-floppy-fill"></i> Save Products</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  App.initSidebar('shoes');
+  const _canEditShoe = Auth.canEditShoe();
+  App.initHeader('Shoe Inventory', _canEditShoe ? 'Manage all your shoe products' : 'View shoe inventory (Staff — View Only)');
+  App.setupImageUpload('shoeImageInput','imagePreview');
+  App.handleHash();
+
+  // Hide add/edit controls for Staff
+  if (!_canEditShoe) {
+    document.getElementById('shoesHeaderActions').style.display = 'none';
+    document.getElementById('shoesSubtitle').textContent = 'Browse shoe inventory — Staff view only (no edits allowed)';
+  }
+
+  const ITEMS_PER_PAGE = 12;
+  let page = 1;
+  let editId = null;
+  let imageData = '';
+
+  // Populate brands datalist + supplier select
+  function refreshBrands() {
+    const brands = [...new Set(DB.getAll('shoes').map(s=>s.brand))].sort();
+    document.getElementById('brandsList').innerHTML = brands.map(b=>`<option value="${App.escape(b)}">`).join('');
+    document.getElementById('filterBrand').innerHTML = `<option value="">All Brands</option>` +
+      brands.map(b=>`<option>${App.escape(b)}</option>`).join('');
+  }
+
+  function refreshSuppliers() {
+    const sups = DB.getAll('suppliers');
+    document.getElementById('shoeSupplier').innerHTML = `<option value="">-- Select Supplier --</option>` +
+      sups.map(s=>`<option value="${s.id}">${App.escape(s.company)}</option>`).join('');
+  }
+
+  // ─── Table Render ─────────────────────────────────────────
+  function renderTable() {
+    const q     = document.getElementById('searchInput').value.toLowerCase();
+    const brand = document.getElementById('filterBrand').value;
+    const cat   = document.getElementById('filterCategory').value;
+    const gen   = document.getElementById('filterGender').value;
+    const stat  = document.getElementById('filterStatus').value;
+
+    let shoes = DB.getAll('shoes').filter(s => {
+      if (q && !`${s.name} ${s.brand} ${s.colour} ${s.barcode} ${s.size} ${s.description||''}`.toLowerCase().includes(q)) return false;
+      if (brand && s.brand !== brand) return false;
+      if (cat   && s.category !== cat) return false;
+      if (gen   && s.gender !== gen)   return false;
+      if (stat) {
+        if (stat==='out'    && s.quantity !== 0) return false;
+        if (stat==='low'    && !(s.quantity>0&&s.quantity<=5)) return false;
+        if (stat==='medium' && !(s.quantity>5&&s.quantity<=20)) return false;
+        if (stat==='in'     && s.quantity<=20) return false;
+      }
+      return true;
+    });
+
+    // Sort: most recently added first
+    shoes.sort((a,b) => b.dateAdded > a.dateAdded ? 1 : -1);
+
+    const total = shoes.length;
+    const pages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+    if (page > pages) page = 1;
+    const slice = shoes.slice((page-1)*ITEMS_PER_PAGE, page*ITEMS_PER_PAGE);
+
+    const body = document.getElementById('shoesBody');
+    if (!slice.length) {
+      body.innerHTML = `<tr><td colspan="12"><div class="empty-state"><i class="bi bi-search empty-icon"></i><h3>No shoes found</h3><p>Try adjusting your filters</p></div></td></tr>`;
+    } else {
+      body.innerHTML = slice.map(s => {
+        const st = DB.getStockStatus(s.quantity);
+        const imgHTML = s.image
+          ? `<img src="${s.image}" class="shoe-img-thumb" alt="${App.escape(s.name)}">`
+          : `<div class="shoe-no-img"><i class="bi bi-bag"></i></div>`;
+        return `<tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:10px">
+              ${imgHTML}
+              <div>
+                <div class="primary" style="white-space:nowrap">${App.escape(s.name)}</div>
+                <div class="text-xs text-muted">#${s.id}</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="badge badge-purple">${App.escape(s.brand)}</span></td>
+          <td>${App.escape(s.category)}</td>
+          <td>${App.escape(s.size)}</td>
+          <td>${App.escape(s.colour||'—')}</td>
+          <td>${App.escape(s.gender)}</td>
+          <td>${App.currency(s.purchasePrice)}</td>
+          <td class="text-success fw-600">${App.currency(s.sellingPrice)}</td>
+          <td class="fw-700 ${s.quantity===0?'text-danger':s.quantity<=5?'text-warning':'text-primary'}">${s.quantity}</td>
+          <td><span class="badge ${st.cls}">${st.label}</span></td>
+          <td class="text-muted text-sm">${App.date(s.dateAdded)}</td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-info btn-icon btn-sm" onclick="viewShoe('${s.id}')" title="View"><i class="bi bi-eye"></i></button>
+              ${_canEditShoe ? `
+              <button class="btn btn-warning btn-icon btn-sm" onclick="editShoe('${s.id}')" title="Edit"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-danger btn-icon btn-sm" onclick="deleteShoe('${s.id}','${App.escape(s.name)}')" title="Delete"><i class="bi bi-trash3"></i></button>
+              ` : ''}
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Pagination
+    const pg = document.getElementById('pagination');
+    if (pages <= 1) { pg.innerHTML=''; return; }
+    let pgHTML = `<span class="page-info">Showing ${(page-1)*ITEMS_PER_PAGE+1}–${Math.min(page*ITEMS_PER_PAGE,total)} of ${total}</span>`;
+    pgHTML += `<button class="page-btn" onclick="changePage(${page-1})" ${page===1?'disabled':''}><i class="bi bi-chevron-left"></i></button>`;
+    for (let i=1;i<=pages;i++) {
+      if (i===1||i===pages||Math.abs(i-page)<=1) pgHTML+=`<button class="page-btn ${i===page?'active':''}" onclick="changePage(${i})">${i}</button>`;
+      else if (Math.abs(i-page)===2) pgHTML+=`<span style="color:var(--text-muted);padding:0 4px">…</span>`;
+    }
+    pgHTML += `<button class="page-btn" onclick="changePage(${page+1})" ${page===pages?'disabled':''}><i class="bi bi-chevron-right"></i></button>`;
+    pg.innerHTML = pgHTML;
+  }
+
+  function changePage(p) { page=p; renderTable(); }
+
+  function clearFilters() {
+    ['searchInput','filterBrand','filterCategory','filterGender','filterStatus'].forEach(id=>{
+      const el=document.getElementById(id); if(el)el.value='';
+    });
+    renderTable();
+  }
+
+  // ─── Margin Calc ─────────────────────────────────────────
+  function calcMargin() {
+    const buy  = parseFloat(document.getElementById('shoePurchasePrice').value)||0;
+    const sell = parseFloat(document.getElementById('shoeSellingPrice').value)||0;
+    const disp = document.getElementById('marginDisplay');
+    if (!buy||!sell) { disp.textContent='—'; disp.style.color='var(--text-muted)'; return; }
+    const margin = ((sell-buy)/buy*100).toFixed(1);
+    const profit = (sell-buy).toFixed(2);
+    disp.textContent = `Rs ${profit} profit (${margin}%)`;
+    disp.style.color = sell>buy ? 'var(--success)' : 'var(--danger)';
+  }
+
+  // ─── CRUD ─────────────────────────────────────────────────
+  function openAddModal() {
+    editId = null; imageData = '';
+    document.getElementById('shoeForm').reset();
+    document.getElementById('imagePreview').style.display='none';
+    document.getElementById('shoeId').value='';
+    document.getElementById('modalTitle').textContent='Add Shoe';
+    document.getElementById('marginDisplay').textContent='—';
+    document.getElementById('shoeDescription').value='';
+    document.getElementById('shoeLocation').value='';
+    refreshSuppliers();
+    App.openModal('shoeModal');
+  }
+
+  function editShoe(id) {
+    const s = DB.getById('shoes', id);
+    if (!s) return;
+    editId = id;
+    refreshSuppliers();
+    document.getElementById('modalTitle').textContent = 'Edit Shoe';
+    document.getElementById('shoeId').value = id;
+    document.getElementById('shoeName').value = s.name;
+    document.getElementById('shoeFormBrand').value = s.brand;
+    document.getElementById('shoeCategory').value = s.category;
+    document.getElementById('shoeGender').value = s.gender;
+    document.getElementById('shoeSize').value = s.size;
+    document.getElementById('shoeColour').value = s.colour||'';
+    document.getElementById('shoePurchasePrice').value = s.purchasePrice;
+    document.getElementById('shoeSellingPrice').value = s.sellingPrice;
+    document.getElementById('shoeQty').value = s.quantity;
+    document.getElementById('shoeSupplier').value = s.supplierId||'';
+    document.getElementById('shoeBarcode').value = s.barcode||'';
+    document.getElementById('shoeLocation').value = s.location||'';
+    document.getElementById('shoeDescription').value = s.description||'';
+    imageData = s.image||'';
+    const prev = document.getElementById('imagePreview');
+    if (imageData) { prev.src=imageData; prev.style.display='block'; } else prev.style.display='none';
+    calcMargin();
+    App.openModal('shoeModal');
+  }
+
+  function saveShoe(e) {
+    e.preventDefault();
+    const imageInput = document.getElementById('shoeImageInput');
+    const finalize = (img) => {
+      const data = {
+        name: document.getElementById('shoeName').value.trim(),
+        brand: document.getElementById('shoeFormBrand').value.trim(),
+        category: document.getElementById('shoeCategory').value,
+        gender: document.getElementById('shoeGender').value,
+        size: document.getElementById('shoeSize').value.trim(),
+        colour: document.getElementById('shoeColour').value.trim(),
+        purchasePrice: parseFloat(document.getElementById('shoePurchasePrice').value)||0,
+        sellingPrice: parseFloat(document.getElementById('shoeSellingPrice').value)||0,
+        quantity: parseInt(document.getElementById('shoeQty').value)||0,
+        supplierId: document.getElementById('shoeSupplier').value||'',
+        barcode: document.getElementById('shoeBarcode').value.trim(),
+        location: document.getElementById('shoeLocation').value.trim(),
+        description: document.getElementById('shoeDescription').value.trim(),
+        image: img,
+        lastUpdated: new Date().toISOString().split('T')[0],
+      };
+      if (editId) {
+        DB.update('shoes', editId, data);
+        App.toast('Shoe Updated', `${data.name} has been updated.`, 'success');
+      } else {
+        data.dateAdded = new Date().toISOString().split('T')[0];
+        DB.add('shoes', data);
+        App.toast('Shoe Added', `${data.name} added to inventory.`, 'success');
+      }
+      App.closeModal('shoeModal');
+      refreshBrands();
+      renderTable();
+    };
+
+    if (imageInput.files[0]) {
+      const reader = new FileReader();
+      reader.onload = e => finalize(e.target.result);
+      reader.readAsDataURL(imageInput.files[0]);
+    } else finalize(imageData);
+  }
+
+  function deleteShoe(id, name) {
+    App.confirm('Delete Shoe', `Delete "${name}"? This cannot be undone.`, () => {
+      DB.delete('shoes', id);
+      App.toast('Deleted', `${name} removed from inventory.`, 'danger');
+      refreshBrands();
+      renderTable();
+    });
+  }
+
+  function viewShoe(id) {
+    const s = DB.getById('shoes', id);
+    if (!s) return;
+    const st = DB.getStockStatus(s.quantity);
+    const sup = s.supplierId ? DB.getById('suppliers', s.supplierId) : null;
+    document.getElementById('viewBody').innerHTML = `
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div style="flex-shrink:0">
+          ${s.image
+            ? `<img src="${s.image}" style="width:140px;height:140px;border-radius:var(--radius-lg);object-fit:cover;border:1px solid var(--border)">`
+            : `<div style="width:140px;height:140px;border-radius:var(--radius-lg);background:rgba(124,58,237,0.1);border:1px solid var(--border-accent);display:flex;align-items:center;justify-content:center;font-size:3rem;color:var(--accent-light)"><i class="bi bi-bag-fill"></i></div>`}
+        </div>
+        <div style="flex:1;min-width:200px">
+          <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:4px">${App.escape(s.name)}</h2>
+          <span class="badge badge-purple" style="margin-bottom:12px">${App.escape(s.brand)}</span>
+          <div class="form-grid" style="gap:12px;margin-top:12px">
+            ${[['ID',s.id],['Category',s.category],['Size',s.size],['Colour',s.colour||'—'],['Gender',s.gender],['Barcode',s.barcode||'—'],['Store Venue / Location',s.location||'Not set']].map(([l,v])=>`
+              <div><div class="form-label">${l}</div><div style="font-size:0.9rem;color:var(--text-primary);font-weight:600">${App.escape(String(v))}</div></div>`).join('')}
+          </div>
+        </div>
+      </div>
+      ${s.description ? `
+      <div style="margin-top:16px;padding:12px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm)">
+        <div class="form-label" style="margin-bottom:4px">Description</div>
+        <div style="font-size:0.875rem;color:var(--text-secondary)">${App.escape(s.description)}</div>
+      </div>` : ''}
+      <div class="divider"></div>
+      <div class="form-grid-3">
+        <div style="background:var(--success-bg);border:1px solid var(--success-border);border-radius:var(--radius);padding:16px;text-align:center">
+          <div class="form-label">Selling Price</div>
+          <div style="font-size:1.4rem;font-weight:800;color:var(--success)">${App.currency(s.sellingPrice)}</div>
+        </div>
+        <div style="background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:var(--radius);padding:16px;text-align:center">
+          <div class="form-label">Purchase Price</div>
+          <div style="font-size:1.4rem;font-weight:800;color:var(--danger)">${App.currency(s.purchasePrice)}</div>
+        </div>
+        <div style="background:var(--info-bg);border:1px solid var(--info-border);border-radius:var(--radius);padding:16px;text-align:center">
+          <div class="form-label">Profit / Unit</div>
+          <div style="font-size:1.4rem;font-weight:800;color:var(--info)">${App.currency(s.sellingPrice-s.purchasePrice)}</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="form-grid">
+        <div><div class="form-label">Stock Quantity</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.6rem;font-weight:800;color:var(--text-primary)">${s.quantity}</span>
+            <span class="badge ${st.cls}">${st.label}</span>
+          </div>
+        </div>
+        <div><div class="form-label">Supplier</div><div style="color:var(--text-primary)">${sup ? App.escape(sup.company) : '—'}</div></div>
+        <div><div class="form-label">Date Added</div><div>${App.date(s.dateAdded)}</div></div>
+        <div><div class="form-label">Last Updated</div><div>${App.date(s.lastUpdated)}</div></div>
+      </div>`;
+    App.openModal('viewModal');
+  }
+
+  // ─── Bulk Add (Up to 5 Products at Once) ─────────────────
+  function openBulkAddModal() {
+    const tbody = document.getElementById('bulkRows');
+    const categories = ['Running','Casual','Sports','Formal','Boots','Sandals'];
+    const genders = ['Men','Women','Kids','Unisex'];
+
+    tbody.innerHTML = [0,1,2,3,4].map(i => `
+      <tr>
+        <td style="font-weight:700;color:var(--text-muted)">${i+1}</td>
+        <td><input type="text" class="form-control btn-sm" id="b_name_${i}" placeholder="Product Name"></td>
+        <td><input type="text" class="form-control btn-sm" id="b_brand_${i}" placeholder="Brand"></td>
+        <td>
+          <select class="form-control btn-sm" id="b_cat_${i}">
+            ${categories.map(c=>`<option ${c==='Casual'?'selected':''}>${c}</option>`).join('')}
+          </select>
+        </td>
+        <td>
+          <select class="form-control btn-sm" id="b_gen_${i}">
+            ${genders.map(g=>`<option ${g==='Unisex'?'selected':''}>${g}</option>`).join('')}
+          </select>
+        </td>
+        <td><input type="text" class="form-control btn-sm" id="b_size_${i}" placeholder="9"></td>
+        <td><input type="text" class="form-control btn-sm" id="b_colour_${i}" placeholder="Black"></td>
+        <td><input type="number" class="form-control btn-sm" id="b_buy_${i}" placeholder="0" min="0" step="0.01"></td>
+        <td><input type="number" class="form-control btn-sm" id="b_sell_${i}" placeholder="0" min="0" step="0.01"></td>
+        <td><input type="number" class="form-control btn-sm" id="b_qty_${i}" placeholder="10" min="0"></td>
+        <td><input type="text" class="form-control btn-sm" id="b_loc_${i}" placeholder="Aisle 1"></td>
+      </tr>`).join('');
+
+    App.openModal('bulkAddModal');
+  }
+
+  function saveBulkShoes(e) {
+    e.preventDefault();
+    const today = new Date().toISOString().split('T')[0];
+    let addedCount = 0;
+
+    for (let i = 0; i < 5; i++) {
+      const name  = document.getElementById(`b_name_${i}`).value.trim();
+      const brand = document.getElementById(`b_brand_${i}`).value.trim();
+      if (!name || !brand) continue;
+
+      const shoe = {
+        name,
+        brand,
+        category: document.getElementById(`b_cat_${i}`).value,
+        gender:   document.getElementById(`b_gen_${i}`).value,
+        size:     document.getElementById(`b_size_${i}`).value.trim() || '9',
+        colour:   document.getElementById(`b_colour_${i}`).value.trim() || 'Standard',
+        purchasePrice: parseFloat(document.getElementById(`b_buy_${i}`).value) || 0,
+        sellingPrice:  parseFloat(document.getElementById(`b_sell_${i}`).value) || 0,
+        quantity:      parseInt(document.getElementById(`b_qty_${i}`).value) || 0,
+        location:      document.getElementById(`b_loc_${i}`).value.trim(),
+        dateAdded:    today,
+        lastUpdated:  today,
+        image: '',
+        description: '',
+      };
+
+      DB.add('shoes', shoe);
+      addedCount++;
+    }
+
+    if (addedCount > 0) {
+      App.toast('Bulk Add Success', `Saved ${addedCount} new shoe product(s) to inventory.`, 'success');
+      App.closeModal('bulkAddModal');
+      refreshBrands();
+      renderTable();
+    } else {
+      App.toast('Notice', 'Please fill out at least one product row with a Name and Brand.', 'warning');
+    }
+  }
+
+  // Handle URL search param
+  const urlQ = new URLSearchParams(window.location.search).get('q');
+  if (urlQ) document.getElementById('searchInput').value = urlQ;
+
+  refreshBrands();
+  refreshSuppliers();
+  renderTable();
+</script>
+</body>
+</html>

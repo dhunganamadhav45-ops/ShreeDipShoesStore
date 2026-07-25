@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Reports — SoleStock</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-container"></div>
+  <div class="main-wrapper">
+    <div id="header-container"></div>
+    <main class="main-content">
+
+      <div class="page-header">
+        <div class="page-header-top">
+          <div><h1>Reports & Analytics</h1><p class="subtitle">Comprehensive insights into your shoe shop performance</p></div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-success" onclick="exportCSV('sales')"><i class="bi bi-download"></i> Export Sales</button>
+            <button class="btn btn-info" onclick="exportCSV('purchases')"><i class="bi bi-download"></i> Export Purchases</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Report Tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap">
+        <button class="btn btn-primary tab-btn active" data-tab="sales-report" onclick="switchTab(this,'sales-report')"><i class="bi bi-cart-fill"></i> Sales</button>
+        <button class="btn btn-secondary tab-btn" data-tab="profit-report" onclick="switchTab(this,'profit-report')"><i class="bi bi-graph-up-arrow"></i> Profit</button>
+        <button class="btn btn-secondary tab-btn" data-tab="stock-report" onclick="switchTab(this,'stock-report')"><i class="bi bi-boxes"></i> Stock</button>
+        <button class="btn btn-secondary tab-btn" data-tab="purchase-report" onclick="switchTab(this,'purchase-report')"><i class="bi bi-truck"></i> Purchases</button>
+        <button class="btn btn-secondary tab-btn" data-tab="best-sellers" onclick="switchTab(this,'best-sellers')"><i class="bi bi-trophy-fill"></i> Best Sellers</button>
+      </div>
+
+      <!-- SALES REPORT -->
+      <div id="sales-report" class="tab-content">
+        <div class="stats-row" style="grid-template-columns:1fr 1fr">
+          <div class="card">
+            <div class="card-header"><span class="card-title"><i class="bi bi-bar-chart-fill"></i> Monthly Revenue</span></div>
+            <div class="chart-container"><canvas id="monthRevenueChart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title"><i class="bi bi-bar-chart-line-fill"></i> Daily Sales (Last 14 Days)</span></div>
+            <div class="chart-container"><canvas id="dailySalesChart"></canvas></div>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;margin-top:24px">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <span class="card-title"><i class="bi bi-table"></i> Sales Summary by Month</span>
+          </div>
+          <div class="table-wrapper"><table class="data-table" id="salesSummaryTable"></table></div>
+        </div>
+      </div>
+
+      <!-- PROFIT REPORT -->
+      <div id="profit-report" class="tab-content" style="display:none">
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px" id="profitKpis"></div>
+        <div class="stats-row" style="grid-template-columns:1fr 1fr">
+          <div class="card">
+            <div class="card-header"><span class="card-title"><i class="bi bi-graph-up"></i> Monthly Profit</span></div>
+            <div class="chart-container"><canvas id="profitChart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title"><i class="bi bi-bar-chart-steps"></i> Profit by Brand</span></div>
+            <div class="chart-container"><canvas id="profitBrandChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STOCK REPORT -->
+      <div id="stock-report" class="tab-content" style="display:none">
+        <div class="stats-row" style="grid-template-columns:1fr 1fr">
+          <div class="card">
+            <div class="card-header"><span class="card-title"><i class="bi bi-pie-chart-fill"></i> Stock Distribution</span></div>
+            <div class="chart-container" style="height:240px"><canvas id="stockDistChart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title"><i class="bi bi-bar-chart-fill"></i> Stock by Brand</span></div>
+            <div class="chart-container" style="height:240px"><canvas id="stockBrandChart"></canvas></div>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;margin-top:24px">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+            <span class="card-title"><i class="bi bi-exclamation-circle-fill" style="color:var(--warning)"></i> Low & Out of Stock</span>
+          </div>
+          <div class="table-wrapper" id="lowStockTable"></div>
+        </div>
+      </div>
+
+      <!-- PURCHASE REPORT -->
+      <div id="purchase-report" class="tab-content" style="display:none">
+        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px" id="purchaseReportKpis"></div>
+        <div class="card">
+          <div class="card-header"><span class="card-title"><i class="bi bi-bar-chart-fill"></i> Monthly Purchase Spending</span></div>
+          <div class="chart-container"><canvas id="purchaseChart"></canvas></div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;margin-top:24px">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border)"><span class="card-title"><i class="bi bi-table"></i> Spending by Supplier</span></div>
+          <div class="table-wrapper" id="supSpendTable"></div>
+        </div>
+      </div>
+
+      <!-- BEST SELLERS -->
+      <div id="best-sellers" class="tab-content" style="display:none">
+        <div class="stats-row" style="grid-template-columns:1fr 1fr">
+          <div class="card">
+            <div class="card-header"><span class="card-title"><i class="bi bi-trophy-fill"></i> Top Selling Shoes</span></div>
+            <div class="chart-container"><canvas id="bestSellChart"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title"><i class="bi bi-pie-chart-fill"></i> Sales by Brand</span></div>
+            <div class="chart-container"><canvas id="brandSalesChart"></canvas></div>
+          </div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;margin-top:24px">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border)"><span class="card-title"><i class="bi bi-table"></i> Best Sellers Table</span></div>
+          <div class="table-wrapper" id="bestSellTable"></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // Guard: Staff cannot access Reports
+  if (!Auth.requireRole(['admin', 'manager'])) { /* redirect handled */ }
+
+  App.initSidebar('reports');
+  App.initHeader('Reports', 'Analytics and business intelligence');
+
+  Chart.defaults.color = '#64748b';
+  Chart.defaults.font.family = "'Outfit', sans-serif";
+
+  const CHART_COLORS = ['#7c3aed','#a855f7','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#14b8a6'];
+
+  function switchTab(btn, tab) {
+    document.querySelectorAll('.tab-btn').forEach(b=>{ b.className='btn btn-secondary tab-btn'; });
+    btn.className = 'btn btn-primary tab-btn active';
+    document.querySelectorAll('.tab-content').forEach(t=>t.style.display='none');
+    document.getElementById(tab).style.display='block';
+    renderTab(tab);
+  }
+
+  const rendered = {};
+  function renderTab(tab) {
+    if (rendered[tab]) return;
+    rendered[tab] = true;
+    if (tab==='sales-report')    renderSalesReport();
+    if (tab==='profit-report')   renderProfitReport();
+    if (tab==='stock-report')    renderStockReport();
+    if (tab==='purchase-report') renderPurchaseReport();
+    if (tab==='best-sellers')    renderBestSellers();
+  }
+
+  // ─── Sales Report ─────────────────────────────────────────
+  function renderSalesReport() {
+    const months = DB.getMonthlySales();
+    new Chart(document.getElementById('monthRevenueChart').getContext('2d'), {
+      type:'line',
+      data: { labels:months.map(m=>m.label), datasets:[{ label:'Revenue', data:months.map(m=>m.revenue), borderColor:'#7c3aed', backgroundColor:'rgba(124,58,237,0.08)', tension:0.4, fill:true, pointBackgroundColor:'#7c3aed', pointRadius:5 }] },
+      options: { responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+App.currency(c.raw)}}}, scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:v=>App.currency(v)},beginAtZero:true}} }
+    });
+
+    // Daily last 14 days
+    const sales = DB.getAll('sales');
+    const daily = [];
+    for (let i=13;i>=0;i--) {
+      const d = new Date(); d.setDate(d.getDate()-i);
+      const key = d.toISOString().split('T')[0];
+      const label = d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      const rev = sales.filter(s=>s.date===key).reduce((a,s)=>a+s.totalAmount,0);
+      daily.push({label,rev});
+    }
+    new Chart(document.getElementById('dailySalesChart').getContext('2d'), {
+      type:'bar',
+      data: { labels:daily.map(d=>d.label), datasets:[{label:'Revenue',data:daily.map(d=>d.rev),backgroundColor:'rgba(6,182,212,0.6)',borderColor:'#06b6d4',borderWidth:1,borderRadius:4}] },
+      options: { responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+App.currency(c.raw)}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:v=>App.currency(v)},beginAtZero:true}} }
+    });
+
+    // Summary table
+    const rows = months.map(m=>({ month:m.label, sales:m.count, revenue:m.revenue, avg: m.count ? m.revenue/m.count : 0 }));
+    const totalRev = rows.reduce((a,r)=>a+r.revenue,0);
+    const totalSales = rows.reduce((a,r)=>a+r.sales,0);
+    document.getElementById('salesSummaryTable').innerHTML = `
+      <thead><tr><th>Month</th><th>Sales Count</th><th>Revenue</th><th>Avg / Sale</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td class="primary">${r.month}</td><td>${r.sales}</td><td class="text-success fw-600">${App.currency(r.revenue)}</td><td>${App.currency(r.avg)}</td></tr>`).join('')}
+      <tr style="font-weight:700;background:rgba(124,58,237,0.06)"><td>Total</td><td>${totalSales}</td><td class="text-success">${App.currency(totalRev)}</td><td>${App.currency(totalSales?totalRev/totalSales:0)}</td></tr>
+      </tbody>`;
+  }
+
+  // ─── Profit Report ────────────────────────────────────────
+  function renderProfitReport() {
+    const sales = DB.getAll('sales');
+    const shoes = DB.getAll('shoes');
+    const shoesMap = Object.fromEntries(shoes.map(s=>[s.id,s]));
+
+    const calcProfit = list => list.reduce((a,s)=>{ const sh=shoesMap[s.shoeId]; return a+(sh?(s.sellingPrice-sh.purchasePrice)*s.quantity:0); },0);
+    const today = new Date().toISOString().split('T')[0];
+    const month = today.slice(0,7);
+
+    const todayProfit  = calcProfit(sales.filter(s=>s.date===today));
+    const monthProfit  = calcProfit(sales.filter(s=>s.date.startsWith(month)));
+    const totalProfit  = calcProfit(sales);
+
+    document.getElementById('profitKpis').innerHTML = [
+      { icon:'bi-graph-up-arrow', cls:'green',  label:"Today's Profit",  value:App.currency(todayProfit) },
+      { icon:'bi-calendar3',      cls:'purple', label:'Monthly Profit',  value:App.currency(monthProfit) },
+      { icon:'bi-currency-dollar',cls:'cyan',   label:'All-Time Profit', value:App.currency(totalProfit) },
+    ].map(k=>`<div class="kpi-card"><div class="kpi-icon ${k.cls}"><i class="bi ${k.icon}"></i></div><div><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div></div></div>`).join('');
+
+    const months = DB.getMonthlySales().map(m=>({
+      label:m.label,
+      profit: calcProfit(sales.filter(s=>s.date.startsWith(m.key)))
+    }));
+
+    new Chart(document.getElementById('profitChart').getContext('2d'),{
+      type:'bar',
+      data:{labels:months.map(m=>m.label),datasets:[{label:'Profit',data:months.map(m=>m.profit),backgroundColor:'rgba(16,185,129,0.5)',borderColor:'#10b981',borderWidth:1,borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+App.currency(c.raw)}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:v=>App.currency(v)},beginAtZero:true}}}
+    });
+
+    // Profit by brand
+    const brandProfit = {};
+    sales.forEach(s=>{
+      const sh=shoesMap[s.shoeId]; if(!sh)return;
+      const p=(s.sellingPrice-sh.purchasePrice)*s.quantity;
+      brandProfit[s.brand||(sh.brand||'Unknown')]=(brandProfit[s.brand||(sh.brand||'Unknown')]||0)+p;
+    });
+    const bLabels=Object.keys(brandProfit); const bData=Object.values(brandProfit);
+    new Chart(document.getElementById('profitBrandChart').getContext('2d'),{
+      type:'bar',
+      data:{labels:bLabels,datasets:[{label:'Profit',data:bData,backgroundColor:CHART_COLORS,borderRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+App.currency(c.raw)}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:v=>App.currency(v)},beginAtZero:true}}}
+    });
+  }
+
+  // ─── Stock Report ─────────────────────────────────────────
+  function renderStockReport() {
+    const shoes = DB.getAll('shoes');
+    const groups=[{l:'In Stock (20+)',n:shoes.filter(s=>s.quantity>20).length,c:'#10b981'},{l:'Medium (6-20)',n:shoes.filter(s=>s.quantity>5&&s.quantity<=20).length,c:'#06b6d4'},{l:'Low (1-5)',n:shoes.filter(s=>s.quantity>0&&s.quantity<=5).length,c:'#f59e0b'},{l:'Out of Stock',n:shoes.filter(s=>s.quantity===0).length,c:'#ef4444'}];
+    new Chart(document.getElementById('stockDistChart').getContext('2d'),{type:'doughnut',data:{labels:groups.map(g=>g.l),datasets:[{data:groups.map(g=>g.n),backgroundColor:groups.map(g=>g.c),borderWidth:0,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',padding:12}}}}});
+
+    // By brand
+    const brands=[...new Set(shoes.map(s=>s.brand))];
+    const bStock=brands.map(b=>shoes.filter(s=>s.brand===b).reduce((a,s)=>a+s.quantity,0));
+    new Chart(document.getElementById('stockBrandChart').getContext('2d'),{type:'bar',data:{labels:brands,datasets:[{label:'Units',data:bStock,backgroundColor:CHART_COLORS,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'},beginAtZero:true}}}});
+
+    // Low/out table
+    const critical = shoes.filter(s=>s.quantity<=5).sort((a,b)=>a.quantity-b.quantity);
+    document.getElementById('lowStockTable').innerHTML = `<table class="data-table"><thead><tr><th>Shoe</th><th>Brand</th><th>Category</th><th>Qty</th><th>Status</th></tr></thead><tbody>${critical.length?critical.map(s=>{const st=DB.getStockStatus(s.quantity);return`<tr><td class="primary">${App.escape(s.name)}</td><td>${App.escape(s.brand)}</td><td>${App.escape(s.category)}</td><td class="fw-700 ${s.quantity===0?'text-danger':'text-warning'}">${s.quantity}</td><td><span class="badge ${st.cls}">${st.label}</span></td></tr>`;}).join(''):`<tr><td colspan="5"><div class="empty-state" style="padding:30px"><i class="bi bi-check-circle-fill empty-icon" style="color:var(--success);opacity:0.8"></i><p>All stock levels are healthy!</p></div></td></tr>`}</tbody></table>`;
+  }
+
+  // ─── Purchase Report ──────────────────────────────────────
+  function renderPurchaseReport() {
+    const purchases = DB.getAll('purchases');
+    const totalSpent = purchases.reduce((a,p)=>a+p.totalCost,0);
+    const month = new Date().toISOString().slice(0,7);
+    const monthSpent = purchases.filter(p=>p.purchaseDate.startsWith(month)).reduce((a,p)=>a+p.totalCost,0);
+
+    document.getElementById('purchaseReportKpis').innerHTML=[
+      {icon:'bi-receipt',cls:'purple',label:'Total Purchases',value:purchases.length},
+      {icon:'bi-calendar3',cls:'orange',label:'This Month',value:App.currency(monthSpent)},
+      {icon:'bi-currency-dollar',cls:'red',label:'Total Spent',value:App.currency(totalSpent)},
+    ].map(k=>`<div class="kpi-card"><div class="kpi-icon ${k.cls}"><i class="bi ${k.icon}"></i></div><div><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div></div></div>`).join('');
+
+    // Monthly spending
+    const months=DB.getMonthlySales().map(m=>({label:m.label,spent:purchases.filter(p=>p.purchaseDate.startsWith(m.key)).reduce((a,p)=>a+p.totalCost,0)}));
+    new Chart(document.getElementById('purchaseChart').getContext('2d'),{type:'bar',data:{labels:months.map(m=>m.label),datasets:[{label:'Spent',data:months.map(m=>m.spent),backgroundColor:'rgba(239,68,68,0.5)',borderColor:'#ef4444',borderWidth:1,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+App.currency(c.raw)}}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:v=>App.currency(v)},beginAtZero:true}}}});
+
+    // By supplier
+    const supMap={};
+    purchases.forEach(p=>{
+      if(!supMap[p.supplierName])supMap[p.supplierName]={name:p.supplierName,orders:0,spent:0};
+      supMap[p.supplierName].orders++;
+      supMap[p.supplierName].spent+=p.totalCost;
+    });
+    const sups=Object.values(supMap).sort((a,b)=>b.spent-a.spent);
+    document.getElementById('supSpendTable').innerHTML=`<table class="data-table"><thead><tr><th>Supplier</th><th>Orders</th><th>Total Spent</th></tr></thead><tbody>${sups.map(s=>`<tr><td class="primary">${App.escape(s.name)}</td><td>${s.orders}</td><td class="text-danger fw-600">${App.currency(s.spent)}</td></tr>`).join('')}</tbody></table>`;
+  }
+
+  // ─── Best Sellers ─────────────────────────────────────────
+  function renderBestSellers() {
+    const best = DB.getBestSellers(10);
+    new Chart(document.getElementById('bestSellChart').getContext('2d'),{type:'bar',data:{labels:best.map(b=>b.name),datasets:[{label:'Units Sold',data:best.map(b=>b.totalQty),backgroundColor:CHART_COLORS,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{display:false}}}}});
+
+    // Sales by brand
+    const brandMap={};
+    DB.getAll('sales').forEach(s=>{
+      const b=s.brand||'Unknown';
+      if(!brandMap[b])brandMap[b]=0;
+      brandMap[b]+=s.totalAmount;
+    });
+    const bLabels=Object.keys(brandMap); const bData=Object.values(brandMap);
+    new Chart(document.getElementById('brandSalesChart').getContext('2d'),{type:'doughnut',data:{labels:bLabels,datasets:[{data:bData,backgroundColor:CHART_COLORS,borderWidth:0,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#94a3b8',padding:8}}}}});
+
+    // Table
+    document.getElementById('bestSellTable').innerHTML=`<table class="data-table"><thead><tr><th>#</th><th>Shoe</th><th>Brand</th><th>Units Sold</th><th>Revenue</th></tr></thead><tbody>${best.map((b,i)=>`<tr><td><span style="font-weight:800;color:${i===0?'var(--warning)':i===1?'var(--text-secondary)':i===2?'#cd7f32':'var(--text-muted)'}">${i+1}</span></td><td class="primary">${App.escape(b.name)}</td><td><span class="badge badge-purple">${App.escape(b.brand)}</span></td><td class="fw-600">${b.totalQty}</td><td class="text-success fw-600">${App.currency(b.totalRevenue)}</td></tr>`).join('')}</tbody></table>`;
+  }
+
+  // ─── Export CSV ───────────────────────────────────────────
+  function exportCSV(type) {
+    let headers, rows, filename;
+    if (type==='sales') {
+      headers=['ID','Shoe','Brand','Size','Qty','Price','Total','Customer','Date'];
+      rows=DB.getAll('sales').map(s=>[s.id,s.shoeName,s.brand||'',s.size||'',s.quantity,s.sellingPrice,s.totalAmount,s.customerName||'',s.date]);
+      filename='solestock_sales.csv';
+    } else {
+      headers=['ID','Supplier','Shoe','Brand','Qty','Cost/Unit','Total','Date'];
+      rows=DB.getAll('purchases').map(p=>[p.id,p.supplierName,p.shoeName,p.brand||'',p.quantity,p.costPrice,p.totalCost,p.purchaseDate]);
+      filename='solestock_purchases.csv';
+    }
+    const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a=document.createElement('a');
+    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+    a.download=filename; a.click();
+    App.toast('Exported', `${filename} downloaded.`, 'success');
+  }
+
+  // Render first tab
+  renderSalesReport();
+</script>
+</body>
+</html>

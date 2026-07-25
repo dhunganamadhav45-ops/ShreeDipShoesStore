@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Suppliers — SoleStock</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+</head>
+<body>
+<div class="app-wrapper">
+  <div id="sidebar-container"></div>
+  <div class="main-wrapper">
+    <div id="header-container"></div>
+    <main class="main-content">
+
+      <div class="page-header">
+        <div class="page-header-top">
+          <div><h1>Supplier Management</h1><p class="subtitle">Manage all your shoe suppliers and vendor information</p></div>
+          <button class="btn btn-primary" onclick="openAdd()"><i class="bi bi-plus-lg"></i> Add Supplier</button>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="filter-bar">
+        <div class="search-box">
+          <i class="bi bi-search"></i>
+          <input type="text" class="form-control" id="supSearch" placeholder="Search name, company..." oninput="render()">
+        </div>
+      </div>
+
+      <!-- Cards Grid -->
+      <div id="supplierGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px"></div>
+
+    </main>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="supModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-building"></i> <span id="supModalTitle">Add Supplier</span></div>
+      <button class="modal-close" onclick="App.closeModal('supModal')"><i class="bi bi-x"></i></button>
+    </div>
+    <form onsubmit="saveSupplier(event)" id="supForm">
+      <input type="hidden" id="supId">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Contact Name <span class="required">*</span></label>
+          <input type="text" class="form-control" id="supName" required placeholder="e.g. David Wilson">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Company <span class="required">*</span></label>
+          <input type="text" class="form-control" id="supCompany" required placeholder="e.g. Nike Distributors Ltd">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="tel" class="form-control" id="supPhone" placeholder="+1-555-0000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" class="form-control" id="supEmail" placeholder="supplier@example.com">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Address</label>
+        <textarea class="form-control" id="supAddress" rows="2" placeholder="Full address"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="App.closeModal('supModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-floppy"></i> Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- View Modal -->
+<div class="modal-overlay" id="viewSupModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="bi bi-building"></i> Supplier Details</div>
+      <button class="modal-close" onclick="App.closeModal('viewSupModal')"><i class="bi bi-x"></i></button>
+    </div>
+    <div id="viewSupBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="App.closeModal('viewSupModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // Guard: Staff cannot access Suppliers
+  if (!Auth.requireRole(['admin', 'manager'])) { /* redirect handled */ }
+
+  App.initSidebar('suppliers');
+  App.initHeader('Suppliers', 'Manage your vendor relationships');
+
+  let editId = null;
+  const COLORS = ['purple','green','cyan','orange','pink','teal'];
+
+  function render() {
+    const q = document.getElementById('supSearch').value.toLowerCase();
+    const sups = DB.getAll('suppliers').filter(s =>
+      !q || `${s.name} ${s.company} ${s.email} ${s.phone}`.toLowerCase().includes(q)
+    );
+
+    const grid = document.getElementById('supplierGrid');
+    if (!sups.length) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><i class="bi bi-building empty-icon"></i><h3>No suppliers found</h3><p>Add your first supplier to get started.</p></div>`;
+      return;
+    }
+
+    // Get purchase counts per supplier
+    const purchases = DB.getAll('purchases');
+    const supStats = {};
+    purchases.forEach(p => {
+      supStats[p.supplierId] = (supStats[p.supplierId]||0)+1;
+    });
+
+    grid.innerHTML = sups.map((s,i) => {
+      const col = COLORS[i % COLORS.length];
+      const orders = supStats[s.id]||0;
+      return `
+        <div class="card" style="padding:24px;display:flex;flex-direction:column;gap:16px;transition:var(--transition);cursor:default" onmouseover="this.style.borderColor='var(--border-hover)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <div class="kpi-icon ${col}" style="width:48px;height:48px;flex-shrink:0">
+              <i class="bi bi-building-fill"></i>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:1rem;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${App.escape(s.company)}</div>
+              <div style="font-size:0.82rem;color:var(--text-muted)">${App.escape(s.name)}</div>
+            </div>
+            <span class="badge badge-purple">${orders} order${orders!==1?'s':''}</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            ${s.phone ? `<div style="display:flex;align-items:center;gap:10px;font-size:0.83rem;color:var(--text-secondary)"><i class="bi bi-telephone-fill" style="color:var(--accent-light);width:16px"></i>${App.escape(s.phone)}</div>` : ''}
+            ${s.email ? `<div style="display:flex;align-items:center;gap:10px;font-size:0.83rem;color:var(--text-secondary)"><i class="bi bi-envelope-fill" style="color:var(--accent-light);width:16px"></i>${App.escape(s.email)}</div>` : ''}
+            ${s.address ? `<div style="display:flex;align-items:flex-start;gap:10px;font-size:0.83rem;color:var(--text-secondary)"><i class="bi bi-geo-alt-fill" style="color:var(--accent-light);width:16px;flex-shrink:0;margin-top:2px"></i><span>${App.escape(s.address)}</span></div>` : ''}
+          </div>
+
+          <div style="display:flex;gap:8px;padding-top:8px;border-top:1px solid var(--border)">
+            <button class="btn btn-info btn-sm" style="flex:1" onclick="viewSup('${s.id}')"><i class="bi bi-eye"></i> View</button>
+            <button class="btn btn-warning btn-sm" style="flex:1" onclick="editSup('${s.id}')"><i class="bi bi-pencil"></i> Edit</button>
+            <button class="btn btn-danger btn-icon btn-sm" onclick="deleteSup('${s.id}','${App.escape(s.company)}')"><i class="bi bi-trash3"></i></button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function openAdd() {
+    editId = null;
+    document.getElementById('supForm').reset();
+    document.getElementById('supId').value = '';
+    document.getElementById('supModalTitle').textContent = 'Add Supplier';
+    App.openModal('supModal');
+  }
+
+  function editSup(id) {
+    const s = DB.getById('suppliers', id);
+    if (!s) return;
+    editId = id;
+    document.getElementById('supModalTitle').textContent = 'Edit Supplier';
+    document.getElementById('supId').value = id;
+    document.getElementById('supName').value = s.name;
+    document.getElementById('supCompany').value = s.company;
+    document.getElementById('supPhone').value = s.phone||'';
+    document.getElementById('supEmail').value = s.email||'';
+    document.getElementById('supAddress').value = s.address||'';
+    App.openModal('supModal');
+  }
+
+  function saveSupplier(e) {
+    e.preventDefault();
+    const data = {
+      name:    document.getElementById('supName').value.trim(),
+      company: document.getElementById('supCompany').value.trim(),
+      phone:   document.getElementById('supPhone').value.trim(),
+      email:   document.getElementById('supEmail').value.trim(),
+      address: document.getElementById('supAddress').value.trim(),
+    };
+    if (editId) {
+      DB.update('suppliers', editId, data);
+      App.toast('Updated', `${data.company} updated successfully.`, 'success');
+    } else {
+      data.createdAt = new Date().toISOString();
+      DB.add('suppliers', data);
+      App.toast('Added', `${data.company} added.`, 'success');
+    }
+    App.closeModal('supModal');
+    render();
+  }
+
+  function deleteSup(id, name) {
+    App.confirm('Delete Supplier', `Delete "${name}"? This cannot be undone.`, () => {
+      DB.delete('suppliers', id);
+      App.toast('Deleted', `${name} removed.`, 'danger');
+      render();
+    });
+  }
+
+  function viewSup(id) {
+    const s = DB.getById('suppliers', id);
+    if (!s) return;
+    const purchases = DB.getAll('purchases').filter(p=>p.supplierId===id);
+    const totalSpent = purchases.reduce((a,p)=>a+p.totalCost,0);
+    document.getElementById('viewSupBody').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;gap:14px;padding:16px;background:rgba(124,58,237,0.06);border:1px solid var(--border-accent);border-radius:var(--radius)">
+          <div class="kpi-icon purple" style="width:52px;height:52px"><i class="bi bi-building-fill"></i></div>
+          <div>
+            <div style="font-size:1.1rem;font-weight:800;color:var(--text-primary)">${App.escape(s.company)}</div>
+            <div style="font-size:0.85rem;color:var(--text-muted)">${App.escape(s.name)}</div>
+          </div>
+        </div>
+        ${[['Supplier ID',s.id],['Phone',s.phone||'—'],['Email',s.email||'—'],['Address',s.address||'—'],['Total Orders',purchases.length+' purchases'],['Total Spent',App.currency(totalSpent)],['Joined',App.date(s.createdAt)]].map(([l,v])=>`
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:0.82rem;color:var(--text-muted)">${l}</span>
+            <span style="font-size:0.875rem;font-weight:600;color:var(--text-primary);text-align:right;max-width:60%">${App.escape(String(v))}</span>
+          </div>`).join('')}
+      </div>`;
+    App.openModal('viewSupModal');
+  }
+
+  render();
+</script>
+</body>
+</html>
